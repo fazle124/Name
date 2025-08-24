@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SRS-Sunrise Advanced Production System</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.0/dist/jsQR.min.js"></script>
     <style>
         :root {
             --primary: #2c3e50;
@@ -128,6 +129,13 @@
             justify-content: center;
             margin-right: 10px;
             font-weight: bold;
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         
         /* Card Styles */
@@ -244,15 +252,23 @@
         .data-table tr:hover {
             background-color: #f9f9f9;
         }
+
+        .data-table td img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
         
         /* Scanner Styles */
         .scanner-container {
             position: relative;
             width: 100%;
             max-width: 500px;
-            margin: 20px 0;
+            margin: 20px auto;
             border-radius: 8px;
             overflow: hidden;
+            background-color: #000;
         }
         
         .scanner-video {
@@ -271,20 +287,110 @@
             align-items: center;
             pointer-events: none;
         }
-        
-        .scanner-frame {
-            width: 80%;
-            height: 50%;
-            border: 3px solid var(--accent);
-            border-radius: 4px;
+
+        .scanner-inner-frame {
+            position: absolute;
+            width: 70%;
+            height: 70%;
+            border: 2px solid white;
+            border-radius: 10px;
             box-shadow: 0 0 0 100vmax rgba(0,0,0,0.5);
         }
+
+        .scanner-inner-frame::before,
+        .scanner-inner-frame::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #fff;
+        }
+
+        .scanner-inner-frame::before {
+            top: -4px;
+            left: -4px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .scanner-inner-frame::after {
+            top: -4px;
+            right: -4px;
+            border-left: none;
+            border-bottom: none;
+        }
         
-        .scan-status {
-            text-align: center;
-            padding: 10px;
-            margin-top: -10px;
+        .scanner-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            clip-path: polygon(
+                0% 0%, 100% 0%, 100% 100%, 0% 100%
+            );
+            transition: all 0.3s ease;
+        }
+        
+        .scanner-frame::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 15%;
+            width: 70%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #fff, transparent);
+            transform: translateY(-50%);
+            animation: scan-line 2s infinite ease-in-out;
+        }
+        
+        @keyframes scan-line {
+            0% { transform: translateY(-50%) scaleX(0); }
+            50% { transform: translateY(-50%) scaleX(1); }
+            100% { transform: translateY(-50%) scaleX(0); }
+        }
+        
+        .scan-prompt {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
             font-size: 0.9rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            text-align: center;
+        }
+        
+        .scanner-actions {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .scanner-actions .action-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .scanner-actions .action-btn:hover {
+            color: var(--secondary);
+        }
+        
+        .scanner-actions .action-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+            margin-bottom: 5px;
         }
         
         /* Login Screen */
@@ -465,40 +571,66 @@
             padding: 15px;
         }
         
-        /* Task No Colors */
-        .task-145 {
-            background-color: #ffeeba;
+        /* Search Bar */
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
         }
         
-        .task-111 {
-            background-color: #bee5eb;
+        .search-container .form-control {
+            padding-right: 40px;
         }
         
-        .task-141 {
-            background-color: #c3e6cb;
+        .search-container .search-icon {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            color: #aaa;
         }
-        
-        .task-70 {
-            background-color: #f5c6cb;
+
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            animation: fadeInOut 3s forwards;
+            min-width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .language-switcher {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-right: 20px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    <!-- Login Screen -->
+    <div id="alert-container"></div>
+
     <div class="login-container" id="loginScreen">
         <div class="login-box">
-            <h2>SRS-Sunrise RFID System</h2>
+            <h2 id="login-title">SRS-Sunrise RFID System</h2>
             <input type="text" id="loginUserId" placeholder="User ID" required>
             <input type="password" id="loginPassword" placeholder="Password" required>
-            <button onclick="login()">Login</button>
+            <button onclick="login()" id="login-button">Login</button>
         </div>
     </div>
     
-    <!-- Main Application -->
     <div class="container" id="appContainer" style="display: none;">
         <div class="sidebar">
             <div class="logo">
-                <h2>
+                <h2 id="sidebar-title">
                     <div class="logo-icon">
                         <svg viewBox="0 0 24 24">
                             <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/>
@@ -509,12 +641,14 @@
                 </h2>
             </div>
             
-            <ul class="menu" id="mainMenu">
-                <!-- Menu items will be loaded dynamically based on user permissions -->
-            </ul>
+            <ul class="menu" id="mainMenu"></ul>
         </div>
         
         <div class="main-content">
+            <div class="language-switcher">
+                <button class="btn btn-sm btn-info" onclick="setLanguage('en')">English</button>
+                <button class="btn btn-sm btn-info" onclick="setLanguage('bn')">বাংলা</button>
+            </div>
             <div class="header">
                 <h1 id="sectionTitle">Dashboard</h1>
                 <div class="user-info">
@@ -523,30 +657,29 @@
                 </div>
             </div>
             
-            <!-- Dashboard Section -->
             <div id="dashboard" class="section">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
                         </svg>
-                        Today's Summary
+                        <span data-lang-key="dashboard-summary-title">Today's Summary</span>
                     </h3>
                     <div class="card-grid">
                         <div class="card">
-                            <h4>Cards Registered</h4>
+                            <h4 data-lang-key="dashboard-cards-registered">Cards Registered</h4>
                             <p id="cardsRegisteredToday">0</p>
                         </div>
                         <div class="card">
-                            <h4>Cards Issued</h4>
+                            <h4 data-lang-key="dashboard-cards-issued">Cards Issued</h4>
                             <p id="cardsIssuedToday">0</p>
                         </div>
                         <div class="card">
-                            <h4>Production Pieces</h4>
+                            <h4 data-lang-key="dashboard-production-pieces">Production Pieces</h4>
                             <p id="productionToday">0</p>
                         </div>
                         <div class="card">
-                            <h4>Active Workers</h4>
+                            <h4 data-lang-key="dashboard-active-workers">Active Workers</h4>
                             <p id="activeWorkers">0</p>
                         </div>
                     </div>
@@ -557,25 +690,92 @@
                         <svg viewBox="0 0 24 24">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                         </svg>
-                        Recent Activities
+                        <span data-lang-key="dashboard-recent-activities">Recent Activities</span>
                     </h3>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Time</th>
-                                <th>Activity</th>
-                                <th>User</th>
-                                <th>Details</th>
+                                <th data-lang-key="time">Time</th>
+                                <th data-lang-key="activity">Activity</th>
+                                <th data-lang-key="user">User</th>
+                                <th data-lang-key="details">Details</th>
                             </tr>
                         </thead>
-                        <tbody id="recentActivities">
-                            <!-- Activities will be loaded here -->
-                        </tbody>
+                        <tbody id="recentActivities"></tbody>
                     </table>
                 </div>
             </div>
             
-            <!-- Card Registration Section -->
+            <div id="workerManagement" class="section" style="display: none;">
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                        </svg>
+                        <span data-lang-key="worker-entry-title">Worker Information Entry</span>
+                    </h3>
+                    <form id="workerForm">
+                        <div class="form-group">
+                            <label for="workerIdEntry" data-lang-key="worker-id">ID No:</label>
+                            <input type="text" id="workerIdEntry" class="form-control" required placeholder="Enter Worker ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="workerNameEntry" data-lang-key="worker-name">Name:</label>
+                            <input type="text" id="workerNameEntry" class="form-control" required placeholder="Enter Worker Name">
+                        </div>
+                        <div class="form-group">
+                            <label for="workerDesignationEntry" data-lang-key="worker-designation">Designation:</label>
+                            <input type="text" id="workerDesignationEntry" class="form-control" required placeholder="Enter Worker Designation">
+                        </div>
+                        <div class="form-group">
+                            <label for="workerSectionEntry" data-lang-key="worker-section">Section:</label>
+                            <input type="text" id="workerSectionEntry" class="form-control" required placeholder="Enter Worker Section">
+                        </div>
+                        <div class="form-group">
+                            <label for="workerFloorEntry" data-lang-key="worker-floor">Floor:</label>
+                            <input type="text" id="workerFloorEntry" class="form-control" required placeholder="Enter Worker Floor">
+                        </div>
+                        <div class="form-group">
+                            <label for="workerJoinDateEntry" data-lang-key="worker-join-date">Join Date:</label>
+                            <input type="date" id="workerJoinDateEntry" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="workerImageEntry" data-lang-key="worker-image">Image:</label>
+                            <input type="file" id="workerImageEntry" class="form-control" accept="image/*" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-lang-key="add-worker">Add Worker</button>
+                    </form>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/>
+                        </svg>
+                        <span data-lang-key="registered-workers-title">Registered Workers</span>
+                    </h3>
+                    <div class="search-container">
+                        <input type="text" id="searchWorker" class="form-control" placeholder="Search workers...">
+                        <span class="search-icon">&#x1F50D;</span>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-lang-key="worker-id">ID No</th>
+                                <th data-lang-key="worker-name">Name</th>
+                                <th data-lang-key="worker-designation">Designation</th>
+                                <th data-lang-key="worker-section">Section</th>
+                                <th data-lang-key="worker-floor">Floor</th>
+                                <th data-lang-key="worker-join-date">Join Date</th>
+                                <th data-lang-key="worker-image">Image</th>
+                                <th data-lang-key="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workerList"></tbody>
+                    </table>
+                </div>
+            </div>
+            
             <div id="cardRegistration" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
@@ -583,43 +783,14 @@
                             <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
                             <path d="M8 14h8v-2H8v2zm0-3h8V9H8v2zm0-3h5V6H8v2z"/>
                         </svg>
-                        Register New Card
+                        <span data-lang-key="register-card-title">Register New Card</span>
                     </h3>
-                    <div class="scanner-container">
-                        <video id="registration-scanner-video" class="scanner-video" playsinline></video>
-                        <div class="scanner-overlay">
-                            <div class="scanner-frame"></div>
-                        </div>
-                    </div>
-                    <p class="scan-status" id="registration-scan-status">Initializing scanner...</p>
-                    
-                    <form id="cardRegistrationForm" style="margin-top: 20px;">
+                    <form id="cardRegistrationForm">
                         <div class="form-group">
-                            <label for="cardNumber">Card Number (RFID)</label>
-                            <input type="text" id="cardNumber" class="form-control" required readonly placeholder="Will be filled automatically from scanner">
+                            <label for="cardNumber" data-lang-key="card-number">Card Number (RFID)</label>
+                            <input type="text" id="cardNumber" class="form-control" required placeholder="Enter card number manually or use scanner">
                         </div>
-                        <div class="form-group">
-                            <label for="workerId">Worker ID</label>
-                            <input type="text" id="workerId" class="form-control" required placeholder="Enter worker ID">
-                        </div>
-                        <div class="form-group">
-                            <label for="workerName">Worker Name</label>
-                            <input type="text" id="workerName" class="form-control" required placeholder="Enter worker name">
-                        </div>
-                        <div class="form-group">
-                            <label for="workLine">Work Line</label>
-                            <select id="workLine" class="form-control" required>
-                                <option value="">Select work line</option>
-                                <option value="Line-101">Line-101</option>
-                                <option value="Line-102">Line-102</option>
-                                <option value="Line-103">Line-103</option>
-                                <option value="Swing-QC">Swing QC (145)</option>
-                                <option value="Line-Output">Line Output (111)</option>
-                                <option value="Finishing">Finishing (141)</option>
-                                <option value="Input">Input (70)</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Register Card</button>
+                        <button type="submit" class="btn btn-primary" data-lang-key="register-card">Register Card</button>
                     </form>
                 </div>
                 
@@ -628,64 +799,76 @@
                         <svg viewBox="0 0 24 24">
                             <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/>
                         </svg>
-                        Registered Cards
+                        <span data-lang-key="registered-cards-title">Registered Cards</span>
                     </h3>
+                    <div class="search-container">
+                        <input type="text" id="searchCard" class="form-control" placeholder="Search card numbers...">
+                        <span class="search-icon">&#x1F50D;</span>
+                    </div>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Card Number</th>
-                                <th>Worker ID</th>
-                                <th>Worker Name</th>
-                                <th>Work Line</th>
-                                <th>Registered Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th data-lang-key="card-number">Card Number</th>
+                                <th data-lang-key="registered-date">Registered Date</th>
+                                <th data-lang-key="status">Status</th>
+                                <th data-lang-key="actions">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="registeredCardsList">
-                            <!-- Registered cards will be loaded here -->
-                        </tbody>
+                        <tbody id="registeredCardsList"></tbody>
                     </table>
                 </div>
             </div>
+
+            <div id="badCardExchange" class="section" style="display: none;">
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM8 14h8v-2H8v2zm0-3h8V9H8v2zm0-3h5V6H8v2z"/>
+                        </svg>
+                        <span data-lang-key="bad-card-exchange-title">Bad Card Exchange</span>
+                    </h3>
+                    <form id="badCardForm">
+                        <div class="form-group">
+                            <label for="oldCardNumber" data-lang-key="old-card-number">Old Card Number (Bad Card)</label>
+                            <input type="text" id="oldCardNumber" class="form-control" required placeholder="Enter old card number">
+                        </div>
+                        <div class="form-group">
+                            <label for="newCardNumber" data-lang-key="new-card-number">New Card Number (Replacement)</label>
+                            <input type="text" id="newCardNumber" class="form-control" required placeholder="Enter new card number">
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-lang-key="exchange-card">Exchange Card</button>
+                    </form>
+                </div>
+            </div>
             
-            <!-- Lot Management Section (Admin Only) -->
             <div id="lotManagement" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                         </svg>
-                        Add New Lot
+                        <span data-lang-key="add-lot-title">Add New Lot</span>
                     </h3>
                     <form id="lotForm">
                         <div class="form-group">
-                            <label for="lotNumber">Lot Number</label>
+                            <label for="lotNumber" data-lang-key="lot-number">Lot Number</label>
                             <input type="text" id="lotNumber" class="form-control" required placeholder="Enter lot number">
                         </div>
                         <div class="form-group">
-                            <label for="lotStyle">Style</label>
+                            <label for="lotStyle" data-lang-key="lot-style">Style</label>
                             <input type="text" id="lotStyle" class="form-control" required placeholder="Enter style">
                         </div>
-                        <div class="form-group">
-                            <label for="lotSize">Size</label>
-                            <input type="text" id="lotSize" class="form-control" required placeholder="Enter size">
+                        <div id="sizeQuantityContainer">
+                            <div class="form-group size-qty-group">
+                                <label data-lang-key="lot-size-quantity">Size & Quantity</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" class="form-control lotSize" placeholder="Size" required>
+                                    <input type="number" class="form-control lotQuantity" placeholder="Quantity" required>
+                                    <button type="button" class="btn btn-success" onclick="addSizeQuantityInput()">+</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="lotQuantity">Quantity</label>
-                            <input type="number" id="lotQuantity" class="form-control" required placeholder="Enter quantity">
-                        </div>
-                        <div class="form-group">
-                            <label for="lotTaskNo">Task No</label>
-                            <select id="lotTaskNo" class="form-control" required>
-                                <option value="">Select Task No</option>
-                                <option value="145">145 (Swing QC Output)</option>
-                                <option value="111">111 (Line Output)</option>
-                                <option value="141">141 (Finishing Output)</option>
-                                <option value="70">70 (Input)</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Add Lot</button>
+                        <button type="submit" class="btn btn-primary" data-lang-key="add-lot">Add Lot</button>
                     </form>
                 </div>
                 
@@ -694,73 +877,74 @@
                         <svg viewBox="0 0 24 24">
                             <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/>
                         </svg>
-                        Available Lots
+                        <span data-lang-key="available-lots-title">Available Lots</span>
                     </h3>
+                    <div class="search-container">
+                        <input type="text" id="searchLot" class="form-control" placeholder="Search lots...">
+                        <span class="search-icon">&#x1F50D;</span>
+                    </div>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Lot Number</th>
-                                <th>Style</th>
-                                <th>Size</th>
-                                <th>Quantity</th>
-                                <th>Task No</th>
-                                <th>Added Date</th>
-                                <th>Actions</th>
+                                <th data-lang-key="lot-number">Lot Number</th>
+                                <th data-lang-key="lot-style">Style</th>
+                                <th data-lang-key="lot-size">Size</th>
+                                <th data-lang-key="lot-quantity">Quantity</th>
+                                <th data-lang-key="added-date">Added Date</th>
+                                <th data-lang-key="actions">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="lotList">
-                            <!-- Lot list will be loaded here -->
-                        </tbody>
+                        <tbody id="lotList"></tbody>
                     </table>
                 </div>
             </div>
             
-            <!-- Card Issue Section -->
             <div id="cardIssue" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
                         </svg>
-                        Issue Production Card
+                        <span data-lang-key="issue-card-title">Issue Production Card</span>
                     </h3>
-                    <div class="scanner-container">
-                        <video id="issue-scanner-video" class="scanner-video" playsinline></video>
-                        <div class="scanner-overlay">
-                            <div class="scanner-frame"></div>
-                        </div>
-                    </div>
-                    <p class="scan-status" id="issue-scan-status">Initializing scanner...</p>
-                    
                     <form id="cardIssueForm" style="margin-top: 20px;">
                         <div class="form-group">
-                            <label for="issueCardNumber">Card Number</label>
-                            <input type="text" id="issueCardNumber" class="form-control" required readonly placeholder="Will be filled automatically from scanner">
+                            <label for="issueCardNumber" data-lang-key="card-number">Card Number</label>
+                            <input type="text" id="issueCardNumber" class="form-control" required placeholder="Enter card number">
                         </div>
                         <div class="form-group">
-                            <label for="issueLotNumber">Lot Number</label>
+                            <label for="issueLotNumber" data-lang-key="lot-number">Lot Number</label>
                             <select id="issueLotNumber" class="form-control" required>
-                                <option value="">Select Lot Number</option>
-                                <!-- Lot options will be loaded dynamically -->
+                                <option value="" data-lang-key="select-lot">Select Lot Number</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="issueStyle">Style</label>
+                            <label for="issueStyle" data-lang-key="lot-style">Style</label>
                             <input type="text" id="issueStyle" class="form-control" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="issueSize">Size</label>
-                            <input type="text" id="issueSize" class="form-control" readonly>
+                            <label for="issueLine" data-lang-key="work-line">Work Line</label>
+                            <select id="issueLine" class="form-control" required>
+                                <option value="" data-lang-key="select-line">Select Work Line</option>
+                                <option value="Line-101">Line-101</option>
+                                <option value="Line-102">Line-102</option>
+                                <option value="Line-103">Line-103</option>
+                                <option value="Swing-QC">Swing QC</option>
+                                <option value="Finishing">Finishing</option>
+                                <option value="Input">Input</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="issueQuantity">Quantity</label>
-                            <input type="number" id="issueQuantity" class="form-control" readonly>
+                            <label for="issueSize" data-lang-key="lot-size">Size</label>
+                            <select id="issueSize" class="form-control" required>
+                                <option value="" data-lang-key="select-size">Select Size</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="issueTaskNo">Task No</label>
-                            <input type="text" id="issueTaskNo" class="form-control" readonly>
+                            <label for="issueQuantity" data-lang-key="quantity">Quantity (Qty)</label>
+                            <input type="number" id="issueQuantity" class="form-control" required placeholder="Enter quantity">
                         </div>
-                        <button type="submit" class="btn btn-primary">Issue Card</button>
+                        <button type="submit" class="btn btn-primary" data-lang-key="issue-card">Issue Card</button>
                     </form>
                 </div>
                 
@@ -769,84 +953,92 @@
                         <svg viewBox="0 0 24 24">
                             <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/>
                         </svg>
-                        Issued Cards
+                        <span data-lang-key="issued-cards-title">Issued Cards</span>
                     </h3>
+                    <div class="search-container">
+                        <input type="text" id="searchIssuedCard" class="form-control" placeholder="Search issued cards...">
+                        <span class="search-icon">&#x1F50D;</span>
+                    </div>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Card Number</th>
-                                <th>Lot Number</th>
-                                <th>Style</th>
-                                <th>Size</th>
-                                <th>Quantity</th>
-                                <th>Task No</th>
-                                <th>Issue Date</th>
-                                <th>Worker</th>
-                                <th>Actions</th>
+                                <th data-lang-key="card-number">Card Number</th>
+                                <th data-lang-key="lot-number">Lot Number</th>
+                                <th data-lang-key="lot-style">Style</th>
+                                <th data-lang-key="lot-size">Size</th>
+                                <th data-lang-key="quantity">Quantity</th>
+                                <th data-lang-key="work-line">Work Line</th>
+                                <th data-lang-key="issue-date">Issue Date</th>
+                                <th data-lang-key="actions">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="issuedCardsList">
-                            <!-- Issued cards will be loaded here -->
-                        </tbody>
+                        <tbody id="issuedCardsList"></tbody>
                     </table>
                 </div>
             </div>
             
-            <!-- Worker Punch Section -->
             <div id="workerPunch" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
                         </svg>
-                        Worker Punch (Production Entry)
+                        <span data-lang-key="worker-punch-title">Worker Punch (Production Entry)</span>
                     </h3>
-                    <div class="scanner-container">
-                        <video id="punch-scanner-video" class="scanner-video" playsinline></video>
-                        <div class="scanner-overlay">
-                            <div class="scanner-frame"></div>
+                    <div class="card-body">
+                        <p data-lang-key="punch-instruction">Scan or enter the production card number to record production.</p>
+                        <div class="scanner-container">
+                            <video id="punch-scanner-video" class="scanner-video" playsinline></video>
+                            <canvas id="punch-scanner-canvas" style="display:none;"></canvas>
+                            <div class="scanner-overlay">
+                                <div class="scanner-inner-frame"></div>
+                                <div class="scan-prompt" data-lang-key="scan-prompt-text">Place the code inside the frame</div>
+                            </div>
+                        </div>
+                        <p class="scan-status" id="punch-scan-status" data-lang-key="scanner-status">Initializing scanner...</p>
+                        <div class="scanner-actions">
+                            <button class="action-btn" onclick="document.getElementById('punch-file-input').click()">
+                                <svg viewBox="0 0 24 24"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM14 9l-3 4-2-2-4 5h12z"/></svg>
+                                <span data-lang-key="gallery">Gallery</span>
+                            </button>
+                            <input type="file" id="punch-file-input" accept="image/*" style="display:none;" onchange="handleImageUpload(event, 'workerPunch')">
                         </div>
                     </div>
-                    <p class="scan-status" id="punch-scan-status">Initializing scanner...</p>
                     
                     <form id="workerPunchForm" style="margin-top: 20px;">
                         <div class="form-group">
-                            <label for="punchCardNumber">Card Number</label>
-                            <input type="text" id="punchCardNumber" class="form-control" required readonly placeholder="Will be filled automatically from scanner">
+                            <label for="punchCardNumber" data-lang-key="card-number">Card Number</label>
+                            <input type="text" id="punchCardNumber" class="form-control" required placeholder="Enter or scan card number">
                         </div>
                         <div class="form-group">
-                            <label for="punchWorkerId">Worker ID</label>
-                            <input type="text" id="punchWorkerId" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label for="punchWorkerName">Worker Name</label>
-                            <input type="text" id="punchWorkerName" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label for="punchWorkLine">Work Line</label>
-                            <input type="text" id="punchWorkLine" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label for="punchLotNumber">Lot Number</label>
+                            <label for="punchLotNumber" data-lang-key="lot-number">Lot Number</label>
                             <input type="text" id="punchLotNumber" class="form-control" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="punchStyle">Style</label>
+                            <label for="punchStyle" data-lang-key="lot-style">Style</label>
                             <input type="text" id="punchStyle" class="form-control" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="punchSize">Size</label>
+                            <label for="punchSize" data-lang-key="lot-size">Size</label>
                             <input type="text" id="punchSize" class="form-control" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="punchTaskNo">Task No</label>
-                            <input type="text" id="punchTaskNo" class="form-control" readonly>
+                            <label for="punchQuantity" data-lang-key="quantity">Quantity (Qty)</label>
+                            <input type="number" id="punchQuantity" class="form-control" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="punchQuantity">Completed Quantity</label>
-                            <input type="number" id="punchQuantity" class="form-control" required placeholder="Enter completed quantity">
+                            <label for="punchWorkLine" data-lang-key="work-line">Work Line</label>
+                            <input type="text" id="punchWorkLine" class="form-control" readonly>
                         </div>
-                        <button type="submit" class="btn btn-success">Record Production</button>
+                        <div class="form-group">
+                            <label for="punchWorkerId" data-lang-key="worker-id">Worker ID</label>
+                            <input type="text" id="punchWorkerId" class="form-control" required placeholder="Enter Worker ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="punchWorkerName" data-lang-key="worker-name">Worker Name</label>
+                            <input type="text" id="punchWorkerName" class="form-control" readonly>
+                        </div>
+                        <button type="submit" class="btn btn-success" data-lang-key="record-production">Record Production</button>
                     </form>
                 </div>
                 
@@ -855,149 +1047,109 @@
                         <svg viewBox="0 0 24 24">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                         </svg>
-                        Today's Production
+                        <span data-lang-key="today-production-title">Today's Production</span>
                     </h3>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Time</th>
-                                <th>Worker</th>
-                                <th>Lot Number</th>
-                                <th>Style</th>
-                                <th>Size</th>
-                                <th>Task No</th>
-                                <th>Quantity</th>
-                                <th>Work Line</th>
+                                <th data-lang-key="time">Time</th>
+                                <th data-lang-key="worker">Worker</th>
+                                <th data-lang-key="lot-number">Lot Number</th>
+                                <th data-lang-key="lot-style">Style</th>
+                                <th data-lang-key="lot-size">Size</th>
+                                <th data-lang-key="quantity">Quantity</th>
+                                <th data-lang-key="work-line">Work Line</th>
                             </tr>
                         </thead>
-                        <tbody id="todayProduction">
-                            <!-- Today's production will be loaded here -->
-                        </tbody>
+                        <tbody id="todayProduction"></tbody>
                     </table>
                 </div>
             </div>
             
-            <!-- Production Tracking Section -->
             <div id="productionTracking" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M16.5 12c1.38 0 2.49-1.12 2.49-2.5S17.88 7 16.5 7C15.12 7 14 8.12 14 9.5s1.12 2.5 2.5 2.5zM9 11c1.66 0 2.99-1.34 2.99-3S10.66 5 9 5C7.34 5 6 6.34 6 8s1.34 3 3 3zm7.5 3c-1.83 0-5.5.92-5.5 2.75V19h11v-2.25c0-1.83-3.67-2.75-5.5-2.75zM9 13c-2.33 0-7 1.17-7 3.5V19h7v-2.25c0-.85.33-2.34 2.37-3.47C10.5 13.1 9.66 13 9 13z"/>
                         </svg>
-                        Track Production (40b)
+                        <span data-lang-key="production-tracking-title">Track Production</span>
                     </h3>
                     <div class="form-group">
-                        <label for="trackCardNumber">Enter Card Number to Track</label>
+                        <label for="trackCardNumber" data-lang-key="enter-card-track">Enter Card Number to Track</label>
                         <div style="display: flex; gap: 10px;">
                             <input type="text" id="trackCardNumber" class="form-control" placeholder="Scan or enter card number">
-                            <button onclick="trackProduction()" class="btn btn-primary">Track</button>
+                            <button onclick="trackProduction()" class="btn btn-primary" data-lang-key="track">Track</button>
                         </div>
                     </div>
-                    
-                    <div id="trackingResults" style="margin-top: 20px;">
-                        <!-- Tracking results will be displayed here -->
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <h3 class="card-title">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                        </svg>
-                        Worker Productivity (RS01)
-                    </h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Worker ID</th>
-                                <th>Worker Name</th>
-                                <th>Work Line</th>
-                                <th>Today's Production</th>
-                                <th>Last Week Avg</th>
-                                <th>Efficiency</th>
-                            </tr>
-                        </thead>
-                        <tbody id="workerProductivity">
-                            <!-- Worker productivity data will be loaded here -->
-                        </tbody>
-                    </table>
+                    <div id="trackingResults" style="margin-top: 20px;"></div>
                 </div>
             </div>
             
-            <!-- Reports Section -->
             <div id="reports" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                         </svg>
-                        Generate Reports
+                        <span data-lang-key="generate-reports-title">Generate Reports</span>
                     </h3>
                     <div class="card-grid">
                         <div class="card">
-                            <h4>Worker Production Report (RS01)</h4>
-                            <p>Detailed production by worker</p>
+                            <h4 data-lang-key="worker-report-title">Worker Production Report</h4>
+                            <p data-lang-key="worker-report-desc">Detailed production by worker</p>
                             <div class="form-group mt-3">
-                                <label for="reportWorkerDate">Select Date</label>
+                                <label for="reportWorkerDate" data-lang-key="select-date">Select Date</label>
                                 <input type="date" id="reportWorkerDate" class="form-control">
                             </div>
-                            <button onclick="generateWorkerReport()" class="btn btn-primary" style="margin-top: 10px;">Generate</button>
+                            <button onclick="generateWorkerReport()" class="btn btn-primary" style="margin-top: 10px;" data-lang-key="generate">Generate</button>
                         </div>
                         <div class="card">
-                            <h4>Task No Production Report (RS08)</h4>
-                            <p>Daily production by Task No</p>
+                            <h4 data-lang-key="lot-report-title">Lot Progress Report</h4>
+                            <p data-lang-key="lot-report-desc">Manufacturing order progress</p>
                             <div class="form-group mt-3">
-                                <label for="reportTaskNoDate">Select Date</label>
-                                <input type="date" id="reportTaskNoDate" class="form-control">
-                            </div>
-                            <button onclick="generateTaskNoReport()" class="btn btn-primary" style="margin-top: 10px;">Generate</button>
-                        </div>
-                        <div class="card">
-                            <h4>Lot Progress Report (RS02)</h4>
-                            <p>Manufacturing order progress</p>
-                            <div class="form-group mt-3">
-                                <label for="reportLotNumber">Select Lot</label>
+                                <label for="reportLotNumber" data-lang-key="select-lot">Select Lot</label>
                                 <select id="reportLotNumber" class="form-control">
-                                    <option value="">All Lots</option>
-                                    <!-- Lot options will be loaded dynamically -->
+                                    <option value="" data-lang-key="all-lots">All Lots</option>
                                 </select>
                             </div>
-                            <button onclick="generateLotReport()" class="btn btn-primary" style="margin-top: 10px;">Generate</button>
+                            <button onclick="generateLotReport()" class="btn btn-primary" style="margin-top: 10px;" data-lang-key="generate">Generate</button>
+                        </div>
+                        <div class="card">
+                            <h4 data-lang-key="attendance-report-title">Worker Attendance Report</h4>
+                            <p data-lang-key="attendance-report-desc">Monthly present/absent list for workers</p>
+                            <div class="form-group mt-3">
+                                <label for="reportWorkerMonth" data-lang-key="select-month">Select Month</label>
+                                <input type="month" id="reportWorkerMonth" class="form-control">
+                            </div>
+                            <button onclick="generateAttendanceReport()" class="btn btn-primary" style="margin-top: 10px;" data-lang-key="generate">Generate</button>
                         </div>
                     </div>
-                    
                     <div class="card mt-3" id="reportResultsContainer" style="display: none;">
-                        <h3 class="card-title">Report Results</h3>
-                        <div id="reportResults">
-                            <!-- Report results will be displayed here -->
-                        </div>
+                        <h3 class="card-title" data-lang-key="report-results-title">Report Results</h3>
+                        <div id="reportResults"></div>
                     </div>
                 </div>
             </div>
             
-            <!-- User Management Section -->
             <div id="userManagement" class="section" style="display: none;">
                 <div class="card">
                     <h3 class="card-title">
                         <svg viewBox="0 0 24 24">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
                         </svg>
-                        User Management
+                        <span data-lang-key="user-management-title">User Management</span>
                     </h3>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>User ID</th>
-                                <th>Name</th>
-                                <th>Role</th>
-                                <th>Last Login</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th data-lang-key="user-id">User ID</th>
+                                <th data-lang-key="user-name">Name</th>
+                                <th data-lang-key="user-role">Role</th>
+                                <th data-lang-key="last-login">Last Login</th>
+                                <th data-lang-key="actions">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="userList">
-                            <!-- User list will be loaded here -->
-                        </tbody>
+                        <tbody id="userList"></tbody>
                     </table>
                 </div>
                 
@@ -1006,44 +1158,323 @@
                         <svg viewBox="0 0 24 24">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
                         </svg>
-                        Add New User
+                        <span data-lang-key="add-user-title">Add New User</span>
                     </h3>
                     <form id="addUserForm">
                         <div class="form-group">
-                            <label for="newUserId">User ID</label>
+                            <label for="newUserId" data-lang-key="user-id">User ID</label>
                             <input type="text" id="newUserId" class="form-control" required placeholder="Enter user ID">
                         </div>
                         <div class="form-group">
-                            <label for="newUserName">Name</label>
+                            <label for="newUserName" data-lang-key="user-name">Name</label>
                             <input type="text" id="newUserName" class="form-control" required placeholder="Enter name">
                         </div>
                         <div class="form-group">
-                            <label for="newUserPassword">Password</label>
+                            <label for="newUserPassword" data-lang-key="user-password">Password</label>
                             <input type="password" id="newUserPassword" class="form-control" required placeholder="Enter password">
                         </div>
                         <div class="form-group">
-                            <label for="newUserRole">Role</label>
+                            <label for="newUserRole" data-lang-key="user-role">Role</label>
                             <select id="newUserRole" class="form-control" required>
-                                <option value="admin">Admin</option>
-                                <option value="supervisor">Supervisor</option>
-                                <option value="operator">Operator</option>
+                                <option value="admin" data-lang-key="role-admin">Admin</option>
+                                <option value="supervisor" data-lang-key="role-supervisor">Supervisor</option>
+                                <option value="operator" data-lang-key="role-operator">Operator</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">Add User</button>
+                        <div class="form-group">
+                            <label for="newUserPermissions" data-lang-key="user-permissions">Permissions</label>
+                            <div id="permissionCheckboxes"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-lang-key="add-user">Add User</button>
                     </form>
                 </div>
             </div>
+
+            <div id="profile" class="section" style="display: none;">
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                        </svg>
+                        <span data-lang-key="profile-title">Profile</span>
+                    </h3>
+                    <form id="profileForm">
+                        <div class="form-group text-center">
+                            <label data-lang-key="profile-picture">Profile Picture</label>
+                            <div class="user-avatar" style="margin: 0 auto; width: 100px; height: 100px; cursor: pointer;" onclick="document.getElementById('profileImageInput').click()">
+                                <img id="profileImageDisplay" src="" alt="Profile Image">
+                            </div>
+                            <input type="file" id="profileImageInput" accept="image/*" style="display: none;" onchange="updateProfileImage()">
+                        </div>
+                        <div class="form-group">
+                            <label for="currentPassword" data-lang-key="current-password">Current Password</label>
+                            <input type="password" id="currentPassword" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword" data-lang-key="new-password">New Password</label>
+                            <input type="password" id="newPassword" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword" data-lang-key="confirm-password">Confirm New Password</label>
+                            <input type="password" id="confirmPassword" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-lang-key="change-password">Change Password</button>
+                    </form>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
+        // Language support
+        const translations = {
+            en: {
+                "login-title": "SRS-Sunrise RFID System",
+                "login-button": "Login",
+                "sidebar-title": "SRS-Sunrise",
+                "dashboard": "Dashboard",
+                "worker-management": "Worker Management",
+                "card-registration": "Card Registration",
+                "bad-card-exchange": "Bad Card Exchange",
+                "lot-management": "Lot Management",
+                "card-issue": "Card Issue",
+                "worker-punch": "Worker Punch",
+                "production-tracking": "Production Tracking",
+                "reports": "Reports",
+                "user-management": "User Management",
+                "profile": "Profile",
+                "logout": "Logout",
+                "dashboard-summary-title": "Today's Summary",
+                "dashboard-cards-registered": "Cards Registered",
+                "dashboard-cards-issued": "Cards Issued",
+                "dashboard-production-pieces": "Production Pieces",
+                "dashboard-active-workers": "Active Workers",
+                "dashboard-recent-activities": "Recent Activities",
+                "time": "Time",
+                "activity": "Activity",
+                "user": "User",
+                "details": "Details",
+                "worker-entry-title": "Worker Information Entry",
+                "worker-id": "ID No",
+                "worker-name": "Name",
+                "worker-designation": "Designation",
+                "worker-section": "Section",
+                "worker-floor": "Floor",
+                "worker-join-date": "Join Date",
+                "worker-image": "Image",
+                "add-worker": "Add Worker",
+                "registered-workers-title": "Registered Workers",
+                "actions": "Actions",
+                "register-card-title": "Register New Card",
+                "card-number": "Card Number",
+                "register-card": "Register Card",
+                "registered-cards-title": "Registered Cards",
+                "registered-date": "Registered Date",
+                "status": "Status",
+                "bad-card-exchange-title": "Bad Card Exchange",
+                "old-card-number": "Old Card Number (Bad Card)",
+                "new-card-number": "New Card Number (Replacement)",
+                "exchange-card": "Exchange Card",
+                "add-lot-title": "Add New Lot",
+                "lot-number": "Lot Number",
+                "lot-style": "Style",
+                "lot-size-quantity": "Size & Quantity",
+                "add-lot": "Add Lot",
+                "available-lots-title": "Available Lots",
+                "lot-size": "Size",
+                "lot-quantity": "Quantity",
+                "added-date": "Added Date",
+                "card-issue-title": "Issue Production Card",
+                "select-lot": "Select Lot Number",
+                "work-line": "Work Line",
+                "select-line": "Select Work Line",
+                "select-size": "Select Size",
+                "quantity": "Quantity (Qty)",
+                "issue-card": "Issue Card",
+                "issued-cards-title": "Issued Cards",
+                "issue-date": "Issue Date",
+                "worker-punch-title": "Worker Punch (Production Entry)",
+                "punch-instruction": "Scan or enter the production card number to record production.",
+                "scan-prompt-text": "Place the code inside the frame",
+                "scanner-status": "Initializing scanner...",
+                "gallery": "Gallery",
+                "record-production": "Record Production",
+                "today-production-title": "Today's Production",
+                "worker": "Worker",
+                "production-tracking-title": "Track Production",
+                "enter-card-track": "Enter Card Number to Track",
+                "track": "Track",
+                "generate-reports-title": "Generate Reports",
+                "worker-report-title": "Worker Production Report",
+                "worker-report-desc": "Detailed production by worker",
+                "select-date": "Select Date",
+                "generate": "Generate",
+                "lot-report-title": "Lot Progress Report",
+                "lot-report-desc": "Manufacturing order progress",
+                "select-lot": "Select Lot",
+                "all-lots": "All Lots",
+                "attendance-report-title": "Worker Attendance Report",
+                "attendance-report-desc": "Monthly present/absent list for workers",
+                "select-month": "Select Month",
+                "report-results-title": "Report Results",
+                "user-management-title": "User Management",
+                "user-id": "User ID",
+                "user-name": "Name",
+                "user-role": "Role",
+                "last-login": "Last Login",
+                "add-user-title": "Add New User",
+                "user-password": "Password",
+                "user-permissions": "Permissions",
+                "add-user": "Add User",
+                "profile-title": "Profile",
+                "profile-picture": "Profile Picture",
+                "current-password": "Current Password",
+                "new-password": "New Password",
+                "confirm-password": "Confirm New Password",
+                "change-password": "Change Password",
+                "role-admin": "Admin",
+                "role-supervisor": "Supervisor",
+                "role-operator": "Operator",
+            },
+            bn: {
+                "login-title": "এসআরএস-সানরাইজ আরএফআইডি সিস্টেম",
+                "login-button": "লগইন",
+                "sidebar-title": "এসআরএস-সানরাইজ",
+                "dashboard": "ড্যাশবোর্ড",
+                "worker-management": "কর্মী ব্যবস্থাপনা",
+                "card-registration": "কার্ড নিবন্ধন",
+                "bad-card-exchange": "নষ্ট কার্ড বিনিময়",
+                "lot-management": "লট ব্যবস্থাপনা",
+                "card-issue": "কার্ড ইস্যু",
+                "worker-punch": "কর্মী পাঞ্চ",
+                "production-tracking": "উৎপাদন ট্র্যাকিং",
+                "reports": "রিপোর্ট",
+                "user-management": "ব্যবহারকারী ব্যবস্থাপনা",
+                "profile": "প্রোফাইল",
+                "logout": "লগআউট",
+                "dashboard-summary-title": "আজকের সারসংক্ষেপ",
+                "dashboard-cards-registered": "নিবন্ধিত কার্ড",
+                "dashboard-cards-issued": "ইস্যু করা কার্ড",
+                "dashboard-production-pieces": "উৎপাদিত পিস",
+                "dashboard-active-workers": "সক্রিয় কর্মী",
+                "dashboard-recent-activities": "সাম্প্রতিক কার্যক্রম",
+                "time": "সময়",
+                "activity": "কার্যকলাপ",
+                "user": "ব্যবহারকারী",
+                "details": "বিস্তারিত",
+                "worker-entry-title": "কর্মী তথ্য এন্ট্রি",
+                "worker-id": "আইডি নং",
+                "worker-name": "নাম",
+                "worker-designation": "পদবী",
+                "worker-section": "সেকশন",
+                "worker-floor": "ফ্লোর",
+                "worker-join-date": "যোগদানের তারিখ",
+                "worker-image": "ছবি",
+                "add-worker": "কর্মী যোগ করুন",
+                "registered-workers-title": "নিবন্ধিত কর্মী",
+                "actions": "অ্যাকশন",
+                "register-card-title": "নতুন কার্ড নিবন্ধন করুন",
+                "card-number": "কার্ড নাম্বার",
+                "register-card": "কার্ড নিবন্ধন",
+                "registered-cards-title": "নিবন্ধিত কার্ড",
+                "registered-date": "নিবন্ধনের তারিখ",
+                "status": "অবস্থা",
+                "bad-card-exchange-title": "নষ্ট কার্ড বিনিময়",
+                "old-card-number": "পুরানো কার্ড নাম্বার (নষ্ট কার্ড)",
+                "new-card-number": "নতুন কার্ড নাম্বার (বিকল্প)",
+                "exchange-card": "কার্ড বিনিময়",
+                "add-lot-title": "নতুন লট যোগ করুন",
+                "lot-number": "লট নাম্বার",
+                "lot-style": "স্টাইল",
+                "lot-size-quantity": "সাইজ এবং পরিমাণ",
+                "add-lot": "লট যোগ করুন",
+                "available-lots-title": "উপলব্ধ লট",
+                "lot-size": "সাইজ",
+                "lot-quantity": "পরিমাণ",
+                "added-date": "যোগদানের তারিখ",
+                "card-issue-title": "উৎপাদন কার্ড ইস্যু করুন",
+                "select-lot": "লট নাম্বার নির্বাচন করুন",
+                "work-line": "ওয়ার্ক লাইন",
+                "select-line": "ওয়ার্ক লাইন নির্বাচন করুন",
+                "select-size": "সাইজ নির্বাচন করুন",
+                "quantity": "পরিমাণ (পিস)",
+                "issue-card": "কার্ড ইস্যু করুন",
+                "issued-cards-title": "ইস্যু করা কার্ড",
+                "issue-date": "ইস্যু তারিখ",
+                "worker-punch-title": "কর্মী পাঞ্চ (উৎপাদন এন্ট্রি)",
+                "punch-instruction": "উৎপাদন রেকর্ড করতে প্রোডাকশন কার্ড নাম্বার স্ক্যান বা এন্ট্রি করুন।",
+                "scan-prompt-text": "কোডটি ফ্রেমের মধ্যে রাখুন",
+                "scanner-status": "স্ক্যানার চালু হচ্ছে...",
+                "gallery": "গ্যালারি",
+                "record-production": "উৎপাদন রেকর্ড করুন",
+                "today-production-title": "আজকের উৎপাদন",
+                "worker": "কর্মী",
+                "production-tracking-title": "উৎপাদন ট্র্যাকিং",
+                "enter-card-track": "ট্র্যাক করতে কার্ড নাম্বার দিন",
+                "track": "ট্র্যাক",
+                "generate-reports-title": "রিপোর্ট তৈরি করুন",
+                "worker-report-title": "কর্মী উৎপাদন রিপোর্ট",
+                "worker-report-desc": "কর্মী অনুসারে বিস্তারিত উৎপাদন",
+                "select-date": "তারিখ নির্বাচন করুন",
+                "generate": "তৈরি করুন",
+                "lot-report-title": "লট অগ্রগতি রিপোর্ট",
+                "lot-report-desc": "ম্যানুফ্যাকচারিং অর্ডারের অগ্রগতি",
+                "select-lot": "লট নির্বাচন করুন",
+                "all-lots": "সকল লট",
+                "attendance-report-title": "কর্মী উপস্থিতি রিপোর্ট",
+                "attendance-report-desc": "কর্মীদের মাসিক উপস্থিতি/অনুপস্থিতির তালিকা",
+                "select-month": "মাস নির্বাচন করুন",
+                "report-results-title": "রিপোর্ট ফলাফল",
+                "user-management-title": "ব্যবহারকারী ব্যবস্থাপনা",
+                "user-id": "ব্যবহারকারী আইডি",
+                "user-name": "নাম",
+                "user-role": "ভূমিকা",
+                "last-login": "শেষ লগইন",
+                "add-user-title": "নতুন ব্যবহারকারী যোগ করুন",
+                "user-password": "পাসওয়ার্ড",
+                "user-permissions": "অনুমতিসমূহ",
+                "add-user": "ব্যবহারকারী যোগ করুন",
+                "profile-title": "প্রোফাইল",
+                "profile-picture": "প্রোফাইল ছবি",
+                "current-password": "বর্তমান পাসওয়ার্ড",
+                "new-password": "নতুন পাসওয়ার্ড",
+                "confirm-password": "নতুন পাসওয়ার্ড নিশ্চিত করুন",
+                "change-password": "পাসওয়ার্ড পরিবর্তন",
+                "role-admin": "অ্যাডমিন",
+                "role-supervisor": "সুপারভাইজার",
+                "role-operator": "অপারেটর",
+            }
+        };
+
+        // User permissions map
+        const permissionsMap = {
+            'view-dashboard': { en: 'View Dashboard', bn: 'ড্যাশবোর্ড দেখুন' },
+            'manage-workers': { en: 'Manage Workers (Add/Edit/Delete)', bn: 'কর্মী পরিচালনা (যোগ/সম্পাদনা/মুছে ফেলা)' },
+            'register-cards': { en: 'Register Cards', bn: 'কার্ড নিবন্ধন' },
+            'exchange-bad-cards': { en: 'Exchange Bad Cards', bn: 'নষ্ট কার্ড বিনিময়' },
+            'manage-lots': { en: 'Manage Lots (Add/Edit/Delete)', bn: 'লট পরিচালনা (যোগ/সম্পাদনা/মুছে ফেলা)' },
+            'issue-cards': { en: 'Issue Cards', bn: 'কার্ড ইস্যু' },
+            'record-production': { en: 'Record Production (Worker Punch)', bn: 'উৎপাদন রেকর্ড (কর্মী পাঞ্চ)' },
+            'track-production': { en: 'Track Production', bn: 'উৎপাদন ট্র্যাকিং' },
+            'generate-reports': { en: 'Generate Reports', bn: 'রিপোর্ট তৈরি' },
+            'manage-users': { en: 'Manage Users (Add/Edit/Delete)', bn: 'ব্যবহারকারী পরিচালনা (যোগ/সম্পাদনা/মুছে ফেলা)' },
+            'view-profile': { en: 'View Profile', bn: 'প্রোফাইল দেখুন' }
+        };
+
         // Database
         let users = [
-            { id: "aradmin", password: "127627", name: "Admin", role: "admin", lastLogin: "" },
-            { id: "supervisor1", password: "123", name: "Production Supervisor", role: "supervisor", lastLogin: "" },
-            { id: "operator1", password: "123", name: "Line Operator", role: "operator", lastLogin: "" }
+            { id: "aradmin", password: "127627", name: "Admin", role: "admin", lastLogin: "", permissions: Object.keys(permissionsMap), image: "" },
+            { id: "supervisor1", password: "123", name: "Production Supervisor", role: "supervisor", lastLogin: "", permissions: ["view-dashboard", "manage-workers", "register-cards", "exchange-bad-cards", "issue-cards", "record-production", "track-production", "generate-reports", "view-profile"], image: "" },
+            { id: "operator1", password: "123", name: "Line Operator", role: "operator", lastLogin: "", permissions: ["view-dashboard", "record-production", "track-production", "view-profile"], image: "" }
         ];
         
+        let workers = [
+            { workerId: "W001", workerName: "Abdul Karim", designation: "Swing Operator", section: "Swing", floor: "2nd", joinDate: "2024-01-15", image: "https://i.ibb.co/L5kR7wM/worker1.jpg" },
+            { workerId: "W002", workerName: "Rahima Begum", designation: "QC", section: "Quality Control", floor: "3rd", joinDate: "2023-10-20", image: "https://i.ibb.co/hK70R9C/worker2.jpg" },
+            { workerId: "W003", workerName: "Jamal Uddin", designation: "Finishing Operator", section: "Finishing", floor: "4th", joinDate: "2024-03-01", image: "https://i.ibb.co/3WqP4Sg/worker3.jpg" }
+        ];
+
         let registeredCards = [];
         let issuedCards = [];
         let productionData = [];
@@ -1051,65 +1482,132 @@
         let lots = [];
         
         let currentUser = null;
-        
+        let currentLang = 'en';
+
         // Initialize with sample data
         function initializeSampleData() {
-            // Sample registered cards
-            registeredCards = [
-                { cardNumber: "RFID001", workerId: "W001", workerName: "Abdul Karim", workLine: "Line-101", registeredDate: "2025-08-01", status: "active" },
-                { cardNumber: "RFID002", workerId: "W002", workerName: "Rahima Begum", workLine: "Swing-QC", registeredDate: "2025-08-01", status: "active" },
-                { cardNumber: "RFID003", workerId: "W003", workerName: "Jamal Uddin", workLine: "Finishing", registeredDate: "2025-08-02", status: "active" }
-            ];
+            if (registeredCards.length === 0) {
+                registeredCards = [
+                    { cardNumber: "RFID001", registeredDate: "2025-08-01", status: "active" },
+                    { cardNumber: "RFID002", registeredDate: "2025-08-01", status: "active" },
+                    { cardNumber: "RFID003", registeredDate: "2025-08-02", status: "active" }
+                ];
+            }
             
-            // Sample lots
-            lots = [
-                { lotNumber: "LOT-2025-001", style: "STYLE-101", size: "M", quantity: 500, taskNo: "145", addedDate: "2025-08-01" },
-                { lotNumber: "LOT-2025-002", style: "STYLE-102", size: "L", quantity: 300, taskNo: "111", addedDate: "2025-08-02" },
-                { lotNumber: "LOT-2025-003", style: "STYLE-103", size: "XL", quantity: 200, taskNo: "141", addedDate: "2025-08-02" }
-            ];
+            if (lots.length === 0) {
+                lots = [
+                    { lotNumber: "LOT-2025-001", style: "STYLE-101", sizes: { "S": 100, "M": 200, "L": 200 }, addedDate: "2025-08-01" },
+                    { lotNumber: "LOT-2025-002", style: "STYLE-102", sizes: { "L": 150, "XL": 150 }, addedDate: "2025-08-02" }
+                ];
+            }
             
-            // Sample issued cards
-            issuedCards = [
-                { 
-                    cardNumber: "RFID002", 
-                    lotNumber: "LOT-2025-001", 
-                    style: "STYLE-101", 
-                    size: "M", 
-                    quantity: 50, 
-                    taskNo: "145",
-                    issueDate: "2025-08-02 09:15", 
-                    workerId: "W002", 
-                    workerName: "Rahima Begum" 
-                },
-                { 
-                    cardNumber: "RFID003", 
-                    lotNumber: "LOT-2025-002", 
-                    style: "STYLE-102", 
-                    size: "L", 
-                    quantity: 30, 
-                    taskNo: "111",
-                    issueDate: "2025-08-02 10:30", 
-                    workerId: "W003", 
-                    workerName: "Jamal Uddin" 
-                }
-            ];
+            if (issuedCards.length === 0) {
+                issuedCards = [
+                    { cardNumber: "RFID002", lotNumber: "LOT-2025-001", style: "STYLE-101", size: "M", quantity: 50, workLine: "Line-101", issueDate: "2025-08-02 09:15" },
+                    { cardNumber: "RFID003", lotNumber: "LOT-2025-002", style: "STYLE-102", size: "L", quantity: 30, workLine: "Finishing", issueDate: "2025-08-02 10:30" }
+                ];
+            }
             
-            // Sample production data
-            productionData = [
-                { cardNumber: "RFID002", date: "2025-08-02", time: "09:30", pieces: 50, workerId: "W002", workerName: "Rahima Begum", workLine: "Swing-QC", lotNumber: "LOT-2025-001", style: "STYLE-101", size: "M", taskNo: "145" },
-                { cardNumber: "RFID003", date: "2025-08-02", time: "10:45", pieces: 30, workerId: "W003", workerName: "Jamal Uddin", workLine: "Finishing", lotNumber: "LOT-2025-002", style: "STYLE-102", size: "L", taskNo: "111" }
-            ];
+            if (productionData.length === 0) {
+                productionData = [
+                    { cardNumber: "RFID002", date: "2025-08-02", time: "09:30", pieces: 50, workerId: "W001", workerName: "Abdul Karim", lotNumber: "LOT-2025-001", style: "STYLE-101", size: "M", workLine: "Line-101" },
+                    { cardNumber: "RFID003", date: "2025-08-02", time: "10:45", pieces: 30, workerId: "W002", workerName: "Rahima Begum", lotNumber: "LOT-2025-002", style: "STYLE-102", size: "L", workLine: "Finishing" }
+                ];
+            }
             
-            // Sample activities
-            activities = [
-                { time: "2025-08-02 09:15", activity: "Card Issued", user: "aradmin", details: "LOT-2025-001/STYLE-101" },
-                { time: "2025-08-02 10:30", activity: "Card Issued", user: "supervisor1", details: "LOT-2025-002/STYLE-102" },
-                { time: "2025-08-02 08:00", activity: "Card Registered", user: "aradmin", details: "RFID003 for Jamal Uddin" },
-                { time: "2025-08-02 09:30", activity: "Production Recorded", user: "operator1", details: "50 pieces by W002" },
-                { time: "2025-08-02 10:45", activity: "Production Recorded", user: "operator1", details: "30 pieces by W003" }
-            ];
+            if (activities.length === 0) {
+                activities = [
+                    { time: "2025-08-02 09:15", activity: "Card Issued", user: "supervisor1", details: "RFID002 for LOT-2025-001" },
+                    { time: "2025-08-02 10:30", activity: "Card Issued", user: "supervisor1", details: "RFID003 for LOT-2025-002" },
+                    { time: "2025-08-02 08:00", activity: "Card Registered", user: "aradmin", details: "RFID003" },
+                    { time: "2025-08-02 09:30", activity: "Production Recorded", user: "operator1", details: "50 pieces by W001" },
+                    { time: "2025-08-02 10:45", activity: "Production Recorded", user: "operator1", details: "30 pieces by W002" }
+                ];
+            }
         }
         
+        // --- Language and UI Functions ---
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+            // Update placeholders
+            const placeholders = {
+                en: {
+                    'searchWorker': 'Search workers...',
+                    'searchCard': 'Search card numbers...',
+                    'searchLot': 'Search lots...',
+                    'searchIssuedCard': 'Search issued cards...',
+                    'trackCardNumber': 'Scan or enter card number',
+                    'workerIdEntry': 'Enter Worker ID',
+                    'workerNameEntry': 'Enter Worker Name',
+                    'workerDesignationEntry': 'Enter Worker Designation',
+                    'workerSectionEntry': 'Enter Worker Section',
+                    'workerFloorEntry': 'Enter Worker Floor',
+                    'cardNumber': 'Enter card number manually or use scanner',
+                    'oldCardNumber': 'Enter old card number',
+                    'newCardNumber': 'Enter new card number',
+                    'lotNumber': 'Enter lot number',
+                    'lotStyle': 'Enter style',
+                    'issueCardNumber': 'Enter card number',
+                    'issueQuantity': 'Enter quantity',
+                    'punchCardNumber': 'Enter or scan card number',
+                    'punchWorkerId': 'Enter Worker ID',
+                    'newUserId': 'Enter user ID',
+                    'newUserName': 'Enter name',
+                    'newUserPassword': 'Enter password',
+                },
+                bn: {
+                    'searchWorker': 'কর্মী খুঁজুন...',
+                    'searchCard': 'কার্ড নাম্বার খুঁজুন...',
+                    'searchLot': 'লট খুঁজুন...',
+                    'searchIssuedCard': 'ইস্যু করা কার্ড খুঁজুন...',
+                    'trackCardNumber': 'স্ক্যান বা কার্ড নাম্বার দিন',
+                    'workerIdEntry': 'কর্মী আইডি লিখুন',
+                    'workerNameEntry': 'কর্মীর নাম লিখুন',
+                    'workerDesignationEntry': 'কর্মীর পদবী লিখুন',
+                    'workerSectionEntry': 'কর্মীর সেকশন লিখুন',
+                    'workerFloorEntry': 'কর্মীর ফ্লোর লিখুন',
+                    'cardNumber': 'কার্ড নাম্বার ম্যানুয়ালি বা স্ক্যানার ব্যবহার করে লিখুন',
+                    'oldCardNumber': 'পুরানো কার্ড নাম্বার লিখুন',
+                    'newCardNumber': 'নতুন কার্ড নাম্বার লিখুন',
+                    'lotNumber': 'লট নাম্বার লিখুন',
+                    'lotStyle': 'স্টাইল লিখুন',
+                    'issueCardNumber': 'কার্ড নাম্বার লিখুন',
+                    'issueQuantity': 'পরিমাণ লিখুন',
+                    'punchCardNumber': 'কার্ড নাম্বার লিখুন বা স্ক্যান করুন',
+                    'punchWorkerId': 'কর্মী আইডি লিখুন',
+                    'newUserId': 'ব্যবহারকারী আইডি লিখুন',
+                    'newUserName': 'নাম লিখুন',
+                    'newUserPassword': 'পাসওয়ার্ড লিখুন',
+                }
+            };
+            for (const id in placeholders[lang]) {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.placeholder = placeholders[lang][id];
+                }
+            }
+            loadPermissionsCheckboxes();
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            const alertBox = document.createElement('div');
+            alertBox.className = `alert alert-${type} alert-box`;
+            alertBox.textContent = message;
+            container.appendChild(alertBox);
+            setTimeout(() => {
+                alertBox.remove();
+            }, 3000);
+        }
+
+        // --- Core Application Logic ---
+
         // Login function
         function login() {
             const userId = document.getElementById("loginUserId").value;
@@ -1124,86 +1622,89 @@
                 document.getElementById("loginScreen").style.display = "none";
                 document.getElementById("appContainer").style.display = "grid";
                 document.getElementById("usernameDisplay").textContent = user.name;
-                document.getElementById("userAvatar").textContent = user.name.charAt(0);
                 
-                // Initialize sample data if empty
-                if (registeredCards.length === 0) {
-                    initializeSampleData();
+                if (user.image) {
+                    document.getElementById("userAvatar").innerHTML = `<img src="${user.image}" alt="User Avatar">`;
+                    document.getElementById("profileImageDisplay").src = user.image;
+                } else {
+                    document.getElementById("userAvatar").textContent = user.name.charAt(0);
                 }
-                
-                // Load menu based on user role
+
+                initializeSampleData();
                 loadMenu();
-                
-                // Load data
-                loadRegisteredCards();
-                loadLots();
-                loadIssuedCards();
-                loadActivities();
-                loadTodayProduction();
-                updateDashboard();
-                loadUserList();
-                
-                // Initialize scanners
-                initScanners();
-                
+                loadDataForCurrentSection('dashboard');
                 showSection('dashboard');
+                setLanguage(currentLang);
+                showAlert(translations[currentLang]["login-success"], 'success');
             } else {
-                alert("Invalid User ID or Password!");
+                showAlert(translations[currentLang]["login-invalid"], 'danger');
             }
         }
         
-        // Load menu based on user role
+        function loadDataForCurrentSection(sectionId) {
+            if (sectionId === 'dashboard') {
+                updateDashboard();
+                loadActivities();
+            } else if (sectionId === 'workerManagement') {
+                loadRegisteredWorkers();
+                document.getElementById('searchWorker').value = '';
+                document.getElementById('searchWorker').addEventListener('input', filterWorkers);
+            } else if (sectionId === 'cardRegistration') {
+                loadRegisteredCards();
+                document.getElementById('searchCard').value = '';
+                document.getElementById('searchCard').addEventListener('input', filterCards);
+            } else if (sectionId === 'lotManagement') {
+                loadLots();
+                document.getElementById('searchLot').value = '';
+                document.getElementById('searchLot').addEventListener('input', filterLots);
+            } else if (sectionId === 'cardIssue') {
+                loadLotOptions();
+                loadIssuedCards();
+                document.getElementById('searchIssuedCard').value = '';
+                document.getElementById('searchIssuedCard').addEventListener('input', filterIssuedCards);
+            } else if (sectionId === 'workerPunch') {
+                loadTodayProduction();
+            } else if (sectionId === 'reports') {
+                loadReportLotOptions();
+            } else if (sectionId === 'userManagement') {
+                loadUserList();
+                loadPermissionsCheckboxes();
+            }
+        }
+
+        // Load menu based on user permissions
         function loadMenu() {
             const menu = document.getElementById("mainMenu");
             menu.innerHTML = '';
             
-            // Always show dashboard
-            menu.appendChild(createMenuItem('dashboard', 'Dashboard', 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z'));
-            
-            // Card registration (admin and supervisor)
-            if (currentUser.role === 'admin' || currentUser.role === 'supervisor') {
-                menu.appendChild(createMenuItem('cardRegistration', 'Card Registration', 'M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM8 14h8v-2H8v2zm0-3h8V9H8v2zm0-3h5V6H8v2z'));
+            const menuItems = {
+                'view-dashboard': { id: 'dashboard', text: translations[currentLang]['dashboard'], svg: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
+                'manage-workers': { id: 'workerManagement', text: translations[currentLang]['worker-management'], svg: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z' },
+                'register-cards': { id: 'cardRegistration', text: translations[currentLang]['card-registration'], svg: 'M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM8 14h8v-2H8v2zm0-3h8V9H8v2zm0-3h5V6H8v2z' },
+                'exchange-bad-cards': { id: 'badCardExchange', text: translations[currentLang]['bad-card-exchange'], svg: 'M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z' },
+                'manage-lots': { id: 'lotManagement', text: translations[currentLang]['lot-management'], svg: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z' },
+                'issue-cards': { id: 'cardIssue', text: translations[currentLang]['card-issue'], svg: 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z' },
+                'record-production': { id: 'workerPunch', text: translations[currentLang]['worker-punch'], svg: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z' },
+                'track-production': { id: 'productionTracking', text: translations[currentLang]['production-tracking'], svg: 'M16.5 12c1.38 0 2.49-1.12 2.49-2.5S17.88 7 16.5 7C15.12 7 14 8.12 14 9.5s1.12 2.5 2.5 2.5zM9 11c1.66 0 2.99-1.34 2.99-3S10.66 5 9 5C7.34 5 6 6.34 6 8s1.34 3 3 3zm7.5 3c-1.83 0-5.5.92-5.5 2.75V19h11v-2.25c0-1.83-3.67-2.75-5.5-2.75zM9 13c-2.33 0-7 1.17-7 3.5V19h7v-2.25c0-.85.33-2.34 2.37-3.47C10.5 13.1 9.66 13 9 13z' },
+                'generate-reports': { id: 'reports', text: translations[currentLang]['reports'], svg: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z' },
+                'manage-users': { id: 'userManagement', text: translations[currentLang]['user-management'], svg: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z' },
+                'view-profile': { id: 'profile', text: translations[currentLang]['profile'], svg: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z' }
+            };
+
+            for (const perm in menuItems) {
+                if (currentUser.permissions.includes(perm)) {
+                    menu.appendChild(createMenuItem(menuItems[perm].id, menuItems[perm].text, menuItems[perm].svg));
+                }
             }
             
-            // Lot management (admin only)
-            if (currentUser.role === 'admin') {
-                menu.appendChild(createMenuItem('lotManagement', 'Lot Management', 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z'));
-            }
-            
-            // Card issue (admin and supervisor)
-            if (currentUser.role === 'admin' || currentUser.role === 'supervisor') {
-                menu.appendChild(createMenuItem('cardIssue', 'Card Issue', 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z'));
-            }
-            
-            // Worker punch (all users)
-            menu.appendChild(createMenuItem('workerPunch', 'Worker Punch', 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'));
-            
-            // Production tracking (all users)
-            menu.appendChild(createMenuItem('productionTracking', 'Production Tracking', 'M16.5 12c1.38 0 2.49-1.12 2.49-2.5S17.88 7 16.5 7C15.12 7 14 8.12 14 9.5s1.12 2.5 2.5 2.5zM9 11c1.66 0 2.99-1.34 2.99-3S10.66 5 9 5C7.34 5 6 6.34 6 8s1.34 3 3 3zm7.5 3c-1.83 0-5.5.92-5.5 2.75V19h11v-2.25c0-1.83-3.67-2.75-5.5-2.75zM9 13c-2.33 0-7 1.17-7 3.5V19h7v-2.25c0-.85.33-2.34 2.37-3.47C10.5 13.1 9.66 13 9 13z'));
-            
-            // Reports (admin and supervisor)
-            if (currentUser.role === 'admin' || currentUser.role === 'supervisor') {
-                menu.appendChild(createMenuItem('reports', 'Reports', 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z'));
-            }
-            
-            // User management (admin only)
-            if (currentUser.role === 'admin') {
-                menu.appendChild(createMenuItem('userManagement', 'User Management', 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'));
-            }
-            
-            // Logout
-            menu.appendChild(createMenuItem('logout', 'Logout', 'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z', true));
+            menu.appendChild(createMenuItem('logout', translations[currentLang]['logout'], 'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z', true));
         }
         
         // Create menu item
         function createMenuItem(sectionId, text, svgPath, isLogout = false) {
             const li = document.createElement("li");
             li.className = "menu-item";
-            if (isLogout) {
-                li.setAttribute("onclick", "logout()");
-            } else {
-                li.setAttribute("onclick", `showSection('${sectionId}')`);
-            }
+            li.setAttribute("onclick", isLogout ? "logout()" : `showSection('${sectionId}')`);
             
             li.innerHTML = `
                 <svg viewBox="0 0 24 24">
@@ -1214,79 +1715,7 @@
             
             return li;
         }
-        
-        // Initialize scanners
-        function initScanners() {
-            // For demo purposes, we'll simulate scanner initialization
-            document.getElementById("registration-scan-status").textContent = "Scanner ready - simulate scan with 'S' key";
-            document.getElementById("issue-scan-status").textContent = "Scanner ready - simulate scan with 'S' key";
-            document.getElementById("punch-scan-status").textContent = "Scanner ready - simulate scan with 'S' key";
-            
-            // Add keyboard listener for demo scanning
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 's' || e.key === 'S') {
-                    simulateScan();
-                }
-            });
-        }
-        
-        // Simulate scanner for demo purposes
-        function simulateScan() {
-            const activeSection = document.querySelector('.section[style="display: block;"]').id;
-            
-            if (activeSection === 'cardRegistration') {
-                const cardNumber = "RFID" + Math.floor(1000 + Math.random() * 9000);
-                document.getElementById("cardNumber").value = cardNumber;
-                document.getElementById("registration-scan-status").textContent = `Card scanned: ${cardNumber}`;
-                document.getElementById("registration-scan-status").style.color = "var(--success)";
-            }
-            else if (activeSection === 'cardIssue') {
-                const activeCards = registeredCards.filter(card => card.status === "active");
-                if (activeCards.length > 0) {
-                    const randomCard = activeCards[Math.floor(Math.random() * activeCards.length)];
-                    document.getElementById("issueCardNumber").value = randomCard.cardNumber;
-                    document.getElementById("issue-scan-status").textContent = `Card scanned: ${randomCard.cardNumber} (${randomCard.workerName})`;
-                    document.getElementById("issue-scan-status").style.color = "var(--success)";
-                }
-            }
-            else if (activeSection === 'workerPunch') {
-                const issuedActiveCards = issuedCards.filter(card => {
-                    const registeredCard = registeredCards.find(rc => rc.cardNumber === card.cardNumber);
-                    return registeredCard && registeredCard.status === "active";
-                });
-                
-                if (issuedActiveCards.length > 0) {
-                    const randomCard = issuedActiveCards[Math.floor(Math.random() * issuedActiveCards.length)];
-                    document.getElementById("punchCardNumber").value = randomCard.cardNumber;
-                    
-                    const registeredCard = registeredCards.find(rc => rc.cardNumber === randomCard.cardNumber);
-                    if (registeredCard) {
-                        document.getElementById("punchWorkerId").value = registeredCard.workerId;
-                        document.getElementById("punchWorkerName").value = registeredCard.workerName;
-                        document.getElementById("punchWorkLine").value = registeredCard.workLine;
-                    }
-                    
-                    document.getElementById("punchLotNumber").value = randomCard.lotNumber;
-                    document.getElementById("punchStyle").value = randomCard.style;
-                    document.getElementById("punchSize").value = randomCard.size;
-                    document.getElementById("punchTaskNo").value = randomCard.taskNo;
-                    
-                    document.getElementById("punch-scan-status").textContent = `Card scanned: ${randomCard.cardNumber}`;
-                    document.getElementById("punch-scan-status").style.color = "var(--success)";
-                }
-            }
-        }
-        
-        // Logout function
-        function logout() {
-            currentUser = null;
-            document.getElementById("appContainer").style.display = "none";
-            document.getElementById("loginScreen").style.display = "flex";
-            document.getElementById("loginUserId").value = "";
-            document.getElementById("loginPassword").value = "";
-        }
-        
-        // Show section function
+
         function showSection(sectionId) {
             if (sectionId === 'logout') {
                 logout();
@@ -1298,541 +1727,504 @@
             });
             document.getElementById(sectionId).style.display = "block";
             
-            // Update active menu item
             document.querySelectorAll(".menu-item").forEach(item => {
                 item.classList.remove("active");
             });
             document.querySelector(`[onclick="showSection('${sectionId}')"]`).classList.add("active");
             
-            // Update section title
             const titles = {
-                "dashboard": "Dashboard",
-                "cardRegistration": "Card Registration",
-                "lotManagement": "Lot Management",
-                "cardIssue": "Card Issue",
-                "workerPunch": "Worker Punch",
-                "productionTracking": "Production Tracking",
-                "reports": "Reports",
-                "userManagement": "User Management"
+                "dashboard": translations[currentLang]['dashboard'],
+                "workerManagement": translations[currentLang]['worker-management'],
+                "cardRegistration": translations[currentLang]['card-registration'],
+                "badCardExchange": translations[currentLang]['bad-card-exchange'],
+                "lotManagement": translations[currentLang]['lot-management'],
+                "cardIssue": translations[currentLang]['card-issue'],
+                "workerPunch": translations[currentLang]['worker-punch'],
+                "productionTracking": translations[currentLang]['production-tracking'],
+                "reports": translations[currentLang]['reports'],
+                "userManagement": translations[currentLang]['user-management'],
+                "profile": translations[currentLang]['profile']
             };
             document.getElementById("sectionTitle").textContent = titles[sectionId];
             
-            // Load specific data when section changes
-            if (sectionId === 'cardIssue') {
-                loadLotOptions();
-            }
-            else if (sectionId === 'reports') {
-                loadReportLotOptions();
+            loadDataForCurrentSection(sectionId);
+        }
+
+        // --- Data Loading and Filtering ---
+
+        // Worker Management
+        function loadRegisteredWorkers() {
+            const tbody = document.getElementById("workerList");
+            tbody.innerHTML = "";
+            workers.forEach(worker => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${worker.workerId}</td>
+                    <td>${worker.workerName}</td>
+                    <td>${worker.designation}</td>
+                    <td>${worker.section}</td>
+                    <td>${worker.floor}</td>
+                    <td>${worker.joinDate}</td>
+                    <td><img src="${worker.image}" alt="${worker.workerName}"></td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="deleteWorker('${worker.workerId}')" data-lang-key="delete-button">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            setLanguage(currentLang);
+        }
+
+        function filterWorkers() {
+            const searchText = document.getElementById('searchWorker').value.toLowerCase();
+            const rows = document.getElementById('workerList').getElementsByTagName('tr');
+            for (let row of rows) {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
             }
         }
-        
-        // Load registered cards
+
+        // Card Registration
         function loadRegisteredCards() {
             const tbody = document.getElementById("registeredCardsList");
             tbody.innerHTML = "";
-            
             registeredCards.forEach(card => {
                 const row = document.createElement("tr");
-                
                 row.innerHTML = `
                     <td>${card.cardNumber}</td>
-                    <td>${card.workerId}</td>
-                    <td>${card.workerName}</td>
-                    <td>${card.workLine}</td>
                     <td>${card.registeredDate}</td>
                     <td><span class="badge ${card.status === 'active' ? 'badge-success' : 'badge-danger'}">${card.status}</span></td>
                     <td>
-                        ${currentUser.role === "admin" ? `<button class="btn btn-danger" onclick="deactivateCard('${card.cardNumber}')">Deactivate</button>` : 'View Only'}
+                        <button class="btn btn-danger btn-sm" onclick="deactivateCard('${card.cardNumber}')" data-lang-key="deactivate-button">Deactivate</button>
                     </td>
                 `;
-                
                 tbody.appendChild(row);
             });
+            setLanguage(currentLang);
+        }
+
+        function filterCards() {
+            const searchText = document.getElementById('searchCard').value.toLowerCase();
+            const rows = document.getElementById('registeredCardsList').getElementsByTagName('tr');
+            for (let row of rows) {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
+            }
         }
         
-        // Load lots
+        // Lot Management
         function loadLots() {
             const tbody = document.getElementById("lotList");
             tbody.innerHTML = "";
-            
             lots.forEach(lot => {
+                const sizesHtml = Object.entries(lot.sizes).map(([size, qty]) => `${size}: ${qty} পিছ`).join('<br>');
                 const row = document.createElement("tr");
-                
                 row.innerHTML = `
                     <td>${lot.lotNumber}</td>
                     <td>${lot.style}</td>
-                    <td>${lot.size}</td>
-                    <td>${lot.quantity}</td>
-                    <td><span class="badge ${getTaskNoClass(lot.taskNo)}">${lot.taskNo}</span></td>
+                    <td>${sizesHtml}</td>
+                    <td>${Object.values(lot.sizes).reduce((sum, qty) => sum + qty, 0)}</td>
                     <td>${lot.addedDate}</td>
                     <td>
-                        ${currentUser.role === "admin" ? `<button class="btn btn-danger" onclick="deleteLot('${lot.lotNumber}')">Delete</button>` : 'View Only'}
+                        <button class="btn btn-danger btn-sm" onclick="deleteLot('${lot.lotNumber}')" data-lang-key="delete-button">Delete</button>
                     </td>
                 `;
-                
                 tbody.appendChild(row);
             });
+            setLanguage(currentLang);
         }
         
-        // Get task no class for styling
-        function getTaskNoClass(taskNo) {
-            switch(taskNo) {
-                case '145': return 'task-145';
-                case '111': return 'task-111';
-                case '141': return 'task-141';
-                case '70': return 'task-70';
-                default: return 'badge-primary';
+        function filterLots() {
+            const searchText = document.getElementById('searchLot').value.toLowerCase();
+            const rows = document.getElementById('lotList').getElementsByTagName('tr');
+            for (let row of rows) {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
             }
         }
-        
-        // Load lot options for card issue
-        function loadLotOptions() {
-            const select = document.getElementById("issueLotNumber");
-            select.innerHTML = '<option value="">Select Lot Number</option>';
-            
-            lots.forEach(lot => {
-                const option = document.createElement("option");
-                option.value = lot.lotNumber;
-                option.textContent = lot.lotNumber;
-                select.appendChild(option);
-            });
-        }
-        
-        // Load lot options for reports
-        function loadReportLotOptions() {
-            const select = document.getElementById("reportLotNumber");
-            select.innerHTML = '<option value="">All Lots</option>';
-            
-            lots.forEach(lot => {
-                const option = document.createElement("option");
-                option.value = lot.lotNumber;
-                option.textContent = `${lot.lotNumber} (${lot.style})`;
-                select.appendChild(option);
-            });
-        }
-        
-        // Update lot details when lot is selected
-        document.getElementById("issueLotNumber").addEventListener("change", function() {
-            const lotNumber = this.value;
-            const lot = lots.find(l => l.lotNumber === lotNumber);
-            
-            if (lot) {
-                document.getElementById("issueStyle").value = lot.style;
-                document.getElementById("issueSize").value = lot.size;
-                document.getElementById("issueQuantity").value = lot.quantity;
-                document.getElementById("issueTaskNo").value = lot.taskNo;
-            } else {
-                document.getElementById("issueStyle").value = "";
-                document.getElementById("issueSize").value = "";
-                document.getElementById("issueQuantity").value = "";
-                document.getElementById("issueTaskNo").value = "";
-            }
-        });
-        
-        // Load issued cards
+
+        // Card Issue
         function loadIssuedCards() {
             const tbody = document.getElementById("issuedCardsList");
             tbody.innerHTML = "";
-            
             issuedCards.forEach(card => {
                 const row = document.createElement("tr");
-                
                 row.innerHTML = `
                     <td>${card.cardNumber}</td>
                     <td>${card.lotNumber}</td>
                     <td>${card.style}</td>
                     <td>${card.size}</td>
                     <td>${card.quantity}</td>
-                    <td><span class="badge ${getTaskNoClass(card.taskNo)}">${card.taskNo}</span></td>
+                    <td>${card.workLine}</td>
                     <td>${card.issueDate}</td>
-                    <td>${card.workerName}</td>
                     <td>
-                        ${currentUser.role === "admin" ? `<button class="btn btn-danger" onclick="cancelIssue('${card.cardNumber}', '${card.lotNumber}')">Cancel</button>` : 'View Only'}
+                        <button class="btn btn-danger btn-sm" onclick="cancelIssue('${card.cardNumber}')" data-lang-key="cancel-button">Cancel</button>
                     </td>
                 `;
-                
                 tbody.appendChild(row);
+            });
+            setLanguage(currentLang);
+        }
+
+        function filterIssuedCards() {
+            const searchText = document.getElementById('searchIssuedCard').value.toLowerCase();
+            const rows = document.getElementById('issuedCardsList').getElementsByTagName('tr');
+            for (let row of rows) {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
+            }
+        }
+
+        function loadLotOptions() {
+            const select = document.getElementById("issueLotNumber");
+            select.innerHTML = `<option value="">${translations[currentLang]['select-lot']}</option>`;
+            lots.forEach(lot => {
+                const option = document.createElement("option");
+                option.value = lot.lotNumber;
+                option.textContent = lot.lotNumber;
+                select.appendChild(option);
+            });
+            
+            document.getElementById("issueLotNumber").addEventListener("change", function() {
+                const lotNumber = this.value;
+                const lot = lots.find(l => l.lotNumber === lotNumber);
+                const styleInput = document.getElementById("issueStyle");
+                const sizeSelect = document.getElementById("issueSize");
+                
+                styleInput.value = lot ? lot.style : "";
+                sizeSelect.innerHTML = `<option value="">${translations[currentLang]['select-size']}</option>`;
+                if (lot) {
+                    Object.keys(lot.sizes).forEach(size => {
+                        const option = document.createElement("option");
+                        option.value = size;
+                        option.textContent = size;
+                        sizeSelect.appendChild(option);
+                    });
+                }
             });
         }
         
-        // Load today's production
-        function loadTodayProduction() {
-            const tbody = document.getElementById("todayProduction");
-            tbody.innerHTML = "";
-            
-            const today = new Date().toISOString().split('T')[0];
-            const todayProductions = productionData.filter(prod => prod.date === today);
-            
-            todayProductions.forEach(prod => {
-                const row = document.createElement("tr");
-                
-                row.innerHTML = `
-                    <td>${prod.time}</td>
-                    <td>${prod.workerName} (${prod.workerId})</td>
-                    <td>${prod.lotNumber}</td>
-                    <td>${prod.style}</td>
-                    <td>${prod.size}</td>
-                    <td><span class="badge ${getTaskNoClass(prod.taskNo)}">${prod.taskNo}</span></td>
-                    <td>${prod.pieces}</td>
-                    <td>${prod.workLine}</td>
-                `;
-                
-                tbody.appendChild(row);
-            });
-        }
+        // Worker Punch
+        document.getElementById("punchCardNumber").addEventListener("input", function() {
+            const cardNumber = this.value;
+            const issuedCard = issuedCards.find(ic => ic.cardNumber === cardNumber);
+            const cardRegistration = registeredCards.find(rc => rc.cardNumber === cardNumber);
+
+            if (issuedCard && cardRegistration) {
+                document.getElementById("punchLotNumber").value = issuedCard.lotNumber;
+                document.getElementById("punchStyle").value = issuedCard.style;
+                document.getElementById("punchSize").value = issuedCard.size;
+                document.getElementById("punchQuantity").value = issuedCard.quantity;
+                document.getElementById("punchWorkLine").value = issuedCard.workLine;
+            } else {
+                document.getElementById("punchLotNumber").value = '';
+                document.getElementById("punchStyle").value = '';
+                document.getElementById("punchSize").value = '';
+                document.getElementById("punchQuantity").value = '';
+                document.getElementById("punchWorkLine").value = '';
+            }
+        });
+
+        document.getElementById("punchWorkerId").addEventListener("input", function() {
+            const workerId = this.value;
+            const worker = workers.find(w => w.workerId === workerId);
+            document.getElementById("punchWorkerName").value = worker ? worker.workerName : '';
+        });
+
+        // --- Form Submissions and Deletions ---
         
-        // Load activities
-        function loadActivities() {
-            const tbody = document.getElementById("recentActivities");
-            tbody.innerHTML = "";
-            
-            // Show only recent 5 activities
-            const recentActivities = activities.slice(0, 5);
-            
-            recentActivities.forEach(activity => {
-                const row = document.createElement("tr");
-                
-                row.innerHTML = `
-                    <td>${activity.time}</td>
-                    <td>${activity.activity}</td>
-                    <td>${activity.user}</td>
-                    <td>${activity.details}</td>
-                `;
-                
-                tbody.appendChild(row);
-            });
-        }
-        
-        // Load user list
-        function loadUserList() {
-            const tbody = document.getElementById("userList");
-            tbody.innerHTML = "";
-            
-            users.forEach(user => {
-                const row = document.createElement("tr");
-                
-                row.innerHTML = `
-                    <td>${user.id}</td>
-                    <td>${user.name}</td>
-                    <td>${user.role}</td>
-                    <td>${user.lastLogin || 'Never'}</td>
-                    <td><span class="badge badge-success">Active</span></td>
-                    <td>
-                        ${currentUser.id !== user.id && currentUser.role === "admin" ? 
-                          `<button class="btn btn-danger" onclick="deleteUser('${user.id}')">Delete</button>` : 
-                          `<em>No Action</em>`}
-                    </td>
-                `;
-                
-                tbody.appendChild(row);
-            });
-        }
-        
-        // Update dashboard
-        function updateDashboard() {
-            const today = new Date().toISOString().split('T')[0];
-            
-            // Cards registered today
-            const cardsRegisteredToday = registeredCards.filter(card => card.registeredDate === today).length;
-            document.getElementById("cardsRegisteredToday").textContent = cardsRegisteredToday;
-            
-            // Cards issued today
-            const cardsIssuedToday = issuedCards.filter(card => card.issueDate.startsWith(today)).length;
-            document.getElementById("cardsIssuedToday").textContent = cardsIssuedToday;
-            
-            // Production today
-            const productionToday = productionData.filter(prod => prod.date === today)
-                                                 .reduce((sum, prod) => sum + prod.pieces, 0);
-            document.getElementById("productionToday").textContent = productionToday;
-            
-            // Active workers
-            const activeWorkers = new Set(productionData.filter(prod => prod.date === today)
-                                                       .map(prod => prod.workerId)).size;
-            document.getElementById("activeWorkers").textContent = activeWorkers;
-        }
-        
-        // Register new card
-        document.getElementById("cardRegistrationForm").addEventListener("submit", function(e) {
+        // Add Worker
+        document.getElementById("workerForm").addEventListener("submit", function(e) {
             e.preventDefault();
-            
-            const cardNumber = document.getElementById("cardNumber").value;
-            const workerId = document.getElementById("workerId").value;
-            const workerName = document.getElementById("workerName").value;
-            const workLine = document.getElementById("workLine").value;
-            const today = new Date().toISOString().split('T')[0];
-            
-            // Check if card already registered
-            if (registeredCards.some(card => card.cardNumber === cardNumber)) {
-                alert("This card is already registered!");
+            const workerId = document.getElementById("workerIdEntry").value;
+            const workerName = document.getElementById("workerNameEntry").value;
+            const designation = document.getElementById("workerDesignationEntry").value;
+            const section = document.getElementById("workerSectionEntry").value;
+            const floor = document.getElementById("workerFloorEntry").value;
+            const joinDate = document.getElementById("workerJoinDateEntry").value;
+            const imageFile = document.getElementById("workerImageEntry").files[0];
+
+            if (workers.some(w => w.workerId === workerId)) {
+                showAlert("This Worker ID already exists!", 'danger');
                 return;
             }
-            
-            // Add new card
-            registeredCards.push({
-                cardNumber,
-                workerId,
-                workerName,
-                workLine,
-                registeredDate: today,
-                status: "active"
-            });
-            
-            // Add activity
-            activities.unshift({
-                time: new Date().toLocaleString(),
-                activity: "Card Registered",
-                user: currentUser.id,
-                details: `${cardNumber} for ${workerName}`
-            });
-            
-            // Reset form
-            this.reset();
-            document.getElementById("registration-scan-status").textContent = "Ready to scan next card...";
-            document.getElementById("registration-scan-status").style.color = "var(--secondary)";
-            
-            // Reload data
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imageUrl = event.target.result;
+                workers.push({ workerId, workerName, designation, section, floor, joinDate, image: imageUrl });
+                activities.unshift({ time: new Date().toLocaleString(), activity: "Worker Added", user: currentUser.id, details: `${workerId} (${workerName})` });
+                e.target.reset();
+                loadRegisteredWorkers();
+                loadActivities();
+                showAlert("Worker added successfully!", 'success');
+            };
+            if (imageFile) {
+                reader.readAsDataURL(imageFile);
+            } else {
+                showAlert("Please upload a worker image.", 'danger');
+            }
+        });
+
+        // Delete Worker
+        function deleteWorker(workerId) {
+            if (confirm(`Are you sure you want to delete worker ${workerId}?`)) {
+                workers = workers.filter(w => w.workerId !== workerId);
+                activities.unshift({ time: new Date().toLocaleString(), activity: "Worker Deleted", user: currentUser.id, details: workerId });
+                loadRegisteredWorkers();
+                loadActivities();
+                showAlert("Worker deleted successfully!", 'success');
+            }
+        }
+
+        // Add Card
+        document.getElementById("cardRegistrationForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const cardNumber = document.getElementById("cardNumber").value;
+            if (registeredCards.some(card => card.cardNumber === cardNumber)) {
+                showAlert("This card is already registered!", 'danger');
+                return;
+            }
+            registeredCards.push({ cardNumber, registeredDate: new Date().toISOString().split('T')[0], status: "active" });
+            activities.unshift({ time: new Date().toLocaleString(), activity: "Card Registered", user: currentUser.id, details: `${cardNumber}` });
+            e.target.reset();
             loadRegisteredCards();
             loadActivities();
             updateDashboard();
-            
-            alert("Card registered successfully!");
+            showAlert("Card registered successfully!", 'success');
         });
         
-        // Add new lot
-        document.getElementById("lotForm").addEventListener("submit", function(e) {
+        // Deactivate Card
+        function deactivateCard(cardNumber) {
+            if (confirm(`Are you sure you want to deactivate card ${cardNumber}?`)) {
+                const card = registeredCards.find(c => c.cardNumber === cardNumber);
+                if (card) {
+                    card.status = "inactive";
+                    activities.unshift({ time: new Date().toLocaleString(), activity: "Card Deactivated", user: currentUser.id, details: cardNumber });
+                    loadRegisteredCards();
+                    loadActivities();
+                    showAlert("Card deactivated successfully!", 'success');
+                }
+            }
+        }
+
+        // Bad Card Exchange
+        document.getElementById("badCardForm").addEventListener("submit", function(e) {
             e.preventDefault();
+            const oldCardNumber = document.getElementById("oldCardNumber").value;
+            const newCardNumber = document.getElementById("newCardNumber").value;
             
-            const lotNumber = document.getElementById("lotNumber").value;
-            const style = document.getElementById("lotStyle").value;
-            const size = document.getElementById("lotSize").value;
-            const quantity = document.getElementById("lotQuantity").value;
-            const taskNo = document.getElementById("lotTaskNo").value;
-            const today = new Date().toISOString().split('T')[0];
+            const oldCard = registeredCards.find(c => c.cardNumber === oldCardNumber);
+            const newCardExists = registeredCards.some(c => c.cardNumber === newCardNumber);
             
-            // Check if lot already exists
-            if (lots.some(lot => lot.lotNumber === lotNumber)) {
-                alert("This lot number already exists!");
+            if (!oldCard) {
+                showAlert("Old card not found!", 'danger');
                 return;
             }
-            
-            // Add new lot
-            lots.push({
-                lotNumber,
-                style,
-                size,
-                quantity,
-                taskNo,
-                addedDate: today
-            });
-            
-            // Add activity
-            activities.unshift({
-                time: new Date().toLocaleString(),
-                activity: "Lot Added",
-                user: currentUser.id,
-                details: `${lotNumber} (${style})`
-            });
-            
-            // Reset form
-            this.reset();
-            
-            // Reload data
-            loadLots();
-            loadActivities();
-            
-            alert("Lot added successfully!");
-        });
-        
-        // Issue card
-        document.getElementById("cardIssueForm").addEventListener("submit", function(e) {
-            e.preventDefault();
-            
-            const cardNumber = document.getElementById("issueCardNumber").value;
-            
-            
-            
-            
-            
-            
-            
-            const lotNumber = document.getElementById("issueLotNumber").value;
-            const lot = lots.find(l => l.lotNumber === lotNumber);
-            
-            if (!lot) {
-                alert("Please select a valid lot!");
+            if (newCardExists) {
+                showAlert("New card number is already in use!", 'danger');
                 return;
             }
-            
-            // Check if card is registered and active
-            const card = registeredCards.find(c => c.cardNumber === cardNumber && c.status === "active");
-            if (!card) {
-                alert("This card is not registered or inactive!");
-                return;
+
+            oldCard.status = "inactive";
+            registeredCards.push({ cardNumber: newCardNumber, registeredDate: new Date().toISOString().split('T')[0], status: "active" });
+
+            const affectedIssuedCard = issuedCards.find(ic => ic.cardNumber === oldCardNumber);
+            if (affectedIssuedCard) {
+                affectedIssuedCard.cardNumber = newCardNumber;
             }
             
-            // Check if card is already issued
-            if (issuedCards.some(ic => ic.cardNumber === cardNumber)) {
-                alert("This card is already issued!");
-                return;
-            }
+            const affectedProduction = productionData.filter(p => p.cardNumber === oldCardNumber);
+            affectedProduction.forEach(p => p.cardNumber = newCardNumber);
             
-            // Issue card
-            issuedCards.push({
-                cardNumber,
-                lotNumber: lot.lotNumber,
-                style: lot.style,
-                size: lot.size,
-                quantity: lot.quantity,
-                taskNo: lot.taskNo,
-                issueDate: new Date().toLocaleString(),
-                workerId: card.workerId,
-                workerName: card.workerName
-            });
-            
-            // Add activity
-            activities.unshift({
-                time: new Date().toLocaleString(),
-                activity: "Card Issued",
-                user: currentUser.id,
-                details: `${lotNumber}/${lot.style}`
-            });
-            
-            // Reset form
-            this.reset();
-            document.getElementById("issue-scan-status").textContent = "Ready to scan next card...";
-            document.getElementById("issue-scan-status").style.color = "var(--secondary)";
-            
-            // Reload data
+            activities.unshift({ time: new Date().toLocaleString(), activity: "Bad Card Exchange", user: currentUser.id, details: `Old: ${oldCardNumber}, New: ${newCardNumber}` });
+            e.target.reset();
+            loadRegisteredCards();
             loadIssuedCards();
             loadActivities();
-            updateDashboard();
+            showAlert("Bad card exchanged successfully!", 'success');
+        });
+
+        // Add Lot
+        function addSizeQuantityInput() {
+            const container = document.getElementById('sizeQuantityContainer');
+            const div = document.createElement('div');
+            div.className = 'form-group size-qty-group';
+            div.innerHTML = `
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" class="form-control lotSize" placeholder="Size" required>
+                    <input type="number" class="form-control lotQuantity" placeholder="Quantity" required>
+                    <button type="button" class="btn btn-danger" onclick="this.parentNode.parentNode.remove()">-</button>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        document.getElementById("lotForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const lotNumber = document.getElementById("lotNumber").value;
+            const style = document.getElementById("lotStyle").value;
+            const sizeInputs = document.querySelectorAll('.lotSize');
+            const qtyInputs = document.querySelectorAll('.lotQuantity');
             
-            alert("Card issued successfully!");
+            if (lots.some(lot => lot.lotNumber === lotNumber)) {
+                showAlert("This lot number already exists!", 'danger');
+                return;
+            }
+
+            const sizes = {};
+            for (let i = 0; i < sizeInputs.length; i++) {
+                const size = sizeInputs[i].value.toUpperCase();
+                const qty = parseInt(qtyInputs[i].value);
+                if (size && !isNaN(qty)) {
+                    sizes[size] = qty;
+                }
+            }
+
+            if (Object.keys(sizes).length === 0) {
+                showAlert("Please add at least one size and quantity.", 'danger');
+                return;
+            }
+            
+            lots.push({ lotNumber, style, sizes, addedDate: new Date().toISOString().split('T')[0] });
+            activities.unshift({ time: new Date().toLocaleString(), activity: "Lot Added", user: currentUser.id, details: `${lotNumber} (${style})` });
+            e.target.reset();
+            document.getElementById('sizeQuantityContainer').innerHTML = `<div class="form-group size-qty-group">
+                <label data-lang-key="lot-size-quantity">Size & Quantity</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" class="form-control lotSize" placeholder="Size" required>
+                    <input type="number" class="form-control lotQuantity" placeholder="Quantity" required>
+                    <button type="button" class="btn btn-success" onclick="addSizeQuantityInput()">+</button>
+                </div>
+            </div>`;
+            loadLots();
+            loadActivities();
+            showAlert("Lot added successfully!", 'success');
         });
         
-        // Worker punch form
+        // Delete Lot
+        function deleteLot(lotNumber) {
+            if (confirm(`Are you sure you want to delete lot ${lotNumber}?`)) {
+                lots = lots.filter(l => l.lotNumber !== lotNumber);
+                activities.unshift({ time: new Date().toLocaleString(), activity: "Lot Deleted", user: currentUser.id, details: lotNumber });
+                loadLots();
+                loadActivities();
+                showAlert("Lot deleted successfully!", 'success');
+            }
+        }
+        
+        // Issue Card
+        document.getElementById("cardIssueForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const cardNumber = document.getElementById("issueCardNumber").value;
+            const lotNumber = document.getElementById("issueLotNumber").value;
+            const workLine = document.getElementById("issueLine").value;
+            const size = document.getElementById("issueSize").value;
+            const quantity = parseInt(document.getElementById("issueQuantity").value);
+            
+            const card = registeredCards.find(c => c.cardNumber === cardNumber && c.status === "active");
+            const issuedCardExists = issuedCards.some(ic => ic.cardNumber === cardNumber);
+            const lot = lots.find(l => l.lotNumber === lotNumber);
+
+            if (!card) { showAlert("Card is not registered or inactive!", 'danger'); return; }
+            if (issuedCardExists) { showAlert("This card is already issued!", 'danger'); return; }
+            if (!lot || !lot.sizes[size]) { showAlert("Lot, size, or quantity not found!", 'danger'); return; }
+            if (quantity > lot.sizes[size]) { showAlert("Issue quantity exceeds available lot quantity!", 'danger'); return; }
+            
+            issuedCards.push({
+                cardNumber, lotNumber, style: lot.style, size, quantity, workLine,
+                issueDate: new Date().toLocaleString()
+            });
+            lot.sizes[size] -= quantity;
+
+            activities.unshift({ time: new Date().toLocaleString(), activity: "Card Issued", user: currentUser.id, details: `${cardNumber} for ${lotNumber}` });
+            e.target.reset();
+            loadIssuedCards();
+            loadLots();
+            loadActivities();
+            updateDashboard();
+            showAlert("Card issued successfully!", 'success');
+        });
+
+        // Cancel Issue
+        function cancelIssue(cardNumber) {
+            if (confirm(`Are you sure you want to cancel this issue for card ${cardNumber}?`)) {
+                const issuedCard = issuedCards.find(ic => ic.cardNumber === cardNumber);
+                if (issuedCard) {
+                    const lot = lots.find(l => l.lotNumber === issuedCard.lotNumber);
+                    if (lot) {
+                        lot.sizes[issuedCard.size] = (lot.sizes[issuedCard.size] || 0) + issuedCard.quantity;
+                    }
+                    issuedCards = issuedCards.filter(ic => ic.cardNumber !== cardNumber);
+                    activities.unshift({ time: new Date().toLocaleString(), activity: "Card Issue Cancelled", user: currentUser.id, details: `${cardNumber}` });
+                    loadIssuedCards();
+                    loadLots();
+                    loadActivities();
+                    showAlert("Issue cancelled successfully!", 'success');
+                }
+            }
+        }
+        
+        // Worker Punch
         document.getElementById("workerPunchForm").addEventListener("submit", function(e) {
             e.preventDefault();
-            
             const cardNumber = document.getElementById("punchCardNumber").value;
-            const quantity = document.getElementById("punchQuantity").value;
+            const workerId = document.getElementById("punchWorkerId").value;
             
-            // Find issued card
             const issuedCard = issuedCards.find(ic => ic.cardNumber === cardNumber);
-            if (!issuedCard) {
-                alert("This card is not issued!");
-                return;
-            }
+            const worker = workers.find(w => w.workerId === workerId);
+
+            if (!issuedCard) { showAlert("This card is not issued!", 'danger'); return; }
+            if (!worker) { showAlert("Worker not found!", 'danger'); return; }
             
-            // Find registered card
-            const registeredCard = registeredCards.find(rc => rc.cardNumber === cardNumber);
-            if (!registeredCard) {
-                alert("Card registration not found!");
-                return;
-            }
-            
-            // Record production
             const now = new Date();
             const date = now.toISOString().split('T')[0];
             const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             productionData.unshift({
-                cardNumber,
-                date,
-                time,
-                pieces: quantity,
-                workerId: registeredCard.workerId,
-                workerName: registeredCard.workerName,
-                workLine: registeredCard.workLine,
-                lotNumber: issuedCard.lotNumber,
-                style: issuedCard.style,
-                size: issuedCard.size,
-                taskNo: issuedCard.taskNo
+                cardNumber, date, time, pieces: issuedCard.quantity, workerId, workerName: worker.workerName,
+                workLine: issuedCard.workLine, lotNumber: issuedCard.lotNumber, style: issuedCard.style, size: issuedCard.size
             });
             
-            // Add activity
-            activities.unshift({
-                time: now.toLocaleString(),
-                activity: "Production Recorded",
-                user: currentUser.id,
-                details: `${quantity} pieces by ${registeredCard.workerId}`
-            });
+            issuedCards = issuedCards.filter(ic => ic.cardNumber !== cardNumber);
             
-            // Reset form
-            this.reset();
-            document.getElementById("punch-scan-status").textContent = "Ready to scan next card...";
-            document.getElementById("punch-scan-status").style.color = "var(--secondary)";
+            activities.unshift({ time: now.toLocaleString(), activity: "Production Recorded", user: currentUser.id, details: `${issuedCard.quantity} pieces by ${worker.workerId}` });
             
-            // Reload data
+            e.target.reset();
+            loadIssuedCards();
             loadTodayProduction();
             loadActivities();
             updateDashboard();
-            
-            alert("Production recorded successfully!");
+            showAlert("Production recorded successfully!", 'success');
         });
         
-        // Track production
+        // --- Reporting and Tracking ---
+        
+        // Track Production
         function trackProduction() {
             const cardNumber = document.getElementById("trackCardNumber").value;
             const resultsContainer = document.getElementById("trackingResults");
-            
-            // Find all productions for this card
             const productions = productionData.filter(prod => prod.cardNumber === cardNumber);
             
             if (productions.length === 0) {
-                resultsContainer.innerHTML = `<div class="alert alert-danger">No production found for this card</div>`;
+                resultsContainer.innerHTML = `<div class="alert alert-danger" data-lang-key="no-prod-found">No production found for this card</div>`;
+                setLanguage(currentLang);
                 return;
             }
-            
-            // Find card info
-            const registeredCard = registeredCards.find(rc => rc.cardNumber === cardNumber);
-            const issuedCard = issuedCards.find(ic => ic.cardNumber === cardNumber);
             
             let html = `
                 <div class="card">
                     <h4>Card Tracking Results</h4>
                     <table class="data-table">
-                        <tr>
-                            <th>Card Number:</th>
-                            <td>${cardNumber}</td>
-                        </tr>
-                        ${registeredCard ? `
-                        <tr>
-                            <th>Worker:</th>
-                            <td>${registeredCard.workerName} (${registeredCard.workerId})</td>
-                        </tr>
-                        <tr>
-                            <th>Work Line:</th>
-                            <td>${registeredCard.workLine}</td>
-                        </tr>
-                        ` : ''}
-                        ${issuedCard ? `
-                        <tr>
-                            <th>Lot Number:</th>
-                            <td>${issuedCard.lotNumber}</td>
-                        </tr>
-                        <tr>
-                            <th>Style:</th>
-                            <td>${issuedCard.style}</td>
-                        </tr>
-                        <tr>
-                            <th>Size:</th>
-                            <td>${issuedCard.size}</td>
-                        </tr>
-                        <tr>
-                            <th>Task No:</th>
-                            <td>${issuedCard.taskNo}</td>
-                        </tr>
-                        ` : ''}
-                    </table>
-                    
-                    <h5 style="margin-top: 20px;">Production History</h5>
-                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>Time</th>
+                                <th>Worker</th>
                                 <th>Pieces</th>
+                                <th>Lot</th>
+                                <th>Style</th>
+                                <th>Size</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1843,7 +2235,11 @@
                     <tr>
                         <td>${prod.date}</td>
                         <td>${prod.time}</td>
+                        <td>${prod.workerName} (${prod.workerId})</td>
                         <td>${prod.pieces}</td>
+                        <td>${prod.lotNumber}</td>
+                        <td>${prod.style}</td>
+                        <td>${prod.size}</td>
                     </tr>
                 `;
             });
@@ -1853,610 +2249,228 @@
                     </table>
                 </div>
             `;
-            
             resultsContainer.innerHTML = html;
         }
-        
-        // Generate worker report
+
+        // Generate Worker Report
         function generateWorkerReport() {
             const date = document.getElementById("reportWorkerDate").value;
             const resultsContainer = document.getElementById("reportResults");
-            
-            if (!date) {
-                alert("Please select a date!");
-                return;
-            }
-            
-            // Filter productions for selected date
+            if (!date) { showAlert("Please select a date!", 'danger'); return; }
             const dateProductions = productionData.filter(prod => prod.date === date);
-            
-            if (dateProductions.length === 0) {
-                resultsContainer.innerHTML = `<div class="alert alert-info">No production data found for ${date}</div>`;
-                document.getElementById("reportResultsContainer").style.display = "block";
-                return;
-            }
-            
-            // Group by worker
+            if (dateProductions.length === 0) { resultsContainer.innerHTML = `<div class="alert alert-info">No production data found for ${date}</div>`; document.getElementById("reportResultsContainer").style.display = "block"; return; }
             const workerMap = new Map();
-            
             dateProductions.forEach(prod => {
                 if (!workerMap.has(prod.workerId)) {
-                    workerMap.set(prod.workerId, {
-                        workerId: prod.workerId,
-                        workerName: prod.workerName,
-                        totalPieces: 0,
-                        workLine: prod.workLine,
-                        productions: []
-                    });
+                    workerMap.set(prod.workerId, { workerId: prod.workerId, workerName: prod.workerName, totalPieces: 0, workLine: prod.workLine, productions: [] });
                 }
-                
                 const workerData = workerMap.get(prod.workerId);
                 workerData.totalPieces += parseInt(prod.pieces);
                 workerData.productions.push(prod);
             });
-            
-            // Generate report
-            let html = `
-                <div class="card">
-                    <h4>Worker Production Report (RS01) - ${date}</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Worker ID</th>
-                                <th>Worker Name</th>
-                                <th>Work Line</th>
-                                <th>Total Pieces</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
+            let html = `<div class="card"><h4>Worker Production Report - ${date}</h4><table class="data-table"><thead><tr><th>Worker ID</th><th>Worker Name</th><th>Work Line</th><th>Total Pieces</th><th>Details</th></tr></thead><tbody>`;
             workerMap.forEach(workerData => {
-                html += `
-                    <tr>
-                        <td>${workerData.workerId}</td>
-                        <td>${workerData.workerName}</td>
-                        <td>${workerData.workLine}</td>
-                        <td>${workerData.totalPieces}</td>
-                        <td>
-                            <button class="btn btn-info" onclick="showWorkerDetails('${workerData.workerId}', '${date}')">View Details</button>
-                        </td>
-                    </tr>
-                `;
+                html += `<tr><td>${workerData.workerId}</td><td>${workerData.workerName}</td><td>${workerData.workLine}</td><td>${workerData.totalPieces}</td><td><button class="btn btn-info btn-sm" onclick="showWorkerDetails('${workerData.workerId}', '${date}')">View Details</button></td></tr>`;
             });
-            
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
+            html += `</tbody></table></div>`;
             resultsContainer.innerHTML = html;
             document.getElementById("reportResultsContainer").style.display = "block";
         }
         
-        // Show worker details
         function showWorkerDetails(workerId, date) {
-            const workerProductions = productionData.filter(prod => 
-                prod.workerId === workerId && prod.date === date
-            );
-            
-            const worker = registeredCards.find(rc => rc.workerId === workerId);
-            
-            let html = `
-                <div class="card">
-                    <h4>Production Details for ${worker ? worker.workerName : workerId} - ${date}</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Lot Number</th>
-                                <th>Style</th>
-                                <th>Size</th>
-                                <th>Task No</th>
-                                <th>Pieces</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
+            const workerProductions = productionData.filter(prod => prod.workerId === workerId && prod.date === date);
+            const worker = workers.find(w => w.workerId === workerId);
+            let html = `<div class="card"><h4>Production Details for ${worker ? worker.workerName : workerId} - ${date}</h4><table class="data-table"><thead><tr><th>Time</th><th>Lot Number</th><th>Style</th><th>Size</th><th>Pieces</th></tr></thead><tbody>`;
             workerProductions.forEach(prod => {
-                html += `
-                    <tr>
-                        <td>${prod.time}</td>
-                        <td>${prod.lotNumber}</td>
-                        <td>${prod.style}</td>
-                        <td>${prod.size}</td>
-                        <td>${prod.taskNo}</td>
-                        <td>${prod.pieces}</td>
-                    </tr>
-                `;
+                html += `<tr><td>${prod.time}</td><td>${prod.lotNumber}</td><td>${prod.style}</td><td>${prod.size}</td><td>${prod.pieces}</td></tr>`;
             });
-            
-            html += `
-                        </tbody>
-                    </table>
-                    <button class="btn btn-primary" onclick="generateWorkerReport()" style="margin-top: 10px;">Back to Report</button>
-                </div>
-            `;
-            
+            html += `</tbody></table><button class="btn btn-primary btn-sm" onclick="generateWorkerReport()" style="margin-top: 10px;">Back to Report</button></div>`;
             document.getElementById("reportResults").innerHTML = html;
         }
         
-        // Generate task no report
-        function generateTaskNoReport() {
-            const date = document.getElementById("reportTaskNoDate").value;
-            const resultsContainer = document.getElementById("reportResults");
-            
-            if (!date) {
-                alert("Please select a date!");
-                return;
-            }
-            
-            // Filter productions for selected date
-            const dateProductions = productionData.filter(prod => prod.date === date);
-            
-            if (dateProductions.length === 0) {
-                resultsContainer.innerHTML = `<div class="alert alert-info">No production data found for ${date}</div>`;
-                document.getElementById("reportResultsContainer").style.display = "block";
-                return;
-            }
-            
-            // Group by task no
-            const taskMap = new Map();
-            
-            dateProductions.forEach(prod => {
-                if (!taskMap.has(prod.taskNo)) {
-                    taskMap.set(prod.taskNo, {
-                        taskNo: prod.taskNo,
-                        totalPieces: 0,
-                        productions: []
-                    });
-                }
-                
-                const taskData = taskMap.get(prod.taskNo);
-                taskData.totalPieces += parseInt(prod.pieces);
-                taskData.productions.push(prod);
+        // Generate Lot Report
+        function loadReportLotOptions() {
+            const select = document.getElementById("reportLotNumber");
+            select.innerHTML = `<option value="">${translations[currentLang]['all-lots']}</option>`;
+            lots.forEach(lot => {
+                const option = document.createElement("option");
+                option.value = lot.lotNumber;
+                option.textContent = `${lot.lotNumber} (${lot.style})`;
+                select.appendChild(option);
             });
-            
-            // Generate report
-            let html = `
-                <div class="card">
-                    <h4>Task No Production Report (RS08) - ${date}</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Task No</th>
-                                <th>Total Pieces</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            taskMap.forEach(taskData => {
-                html += `
-                    <tr>
-                        <td><span class="badge ${getTaskNoClass(taskData.taskNo)}">${taskData.taskNo}</span></td>
-                        <td>${taskData.totalPieces}</td>
-                        <td>
-                            <button class="btn btn-info" onclick="showTaskDetails('${taskData.taskNo}', '${date}')">View Details</button>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            resultsContainer.innerHTML = html;
-            document.getElementById("reportResultsContainer").style.display = "block";
         }
-        
-        // Show task details
-        function showTaskDetails(taskNo, date) {
-            const taskProductions = productionData.filter(prod => 
-                prod.taskNo === taskNo && prod.date === date
-            );
-            
-            let html = `
-                <div class="card">
-                    <h4>Production Details for Task No ${taskNo} - ${date}</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Worker</th>
-                                <th>Lot Number</th>
-                                <th>Style</th>
-                                <th>Size</th>
-                                <th>Pieces</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            taskProductions.forEach(prod => {
-                html += `
-                    <tr>
-                        <td>${prod.time}</td>
-                        <td>${prod.workerName} (${prod.workerId})</td>
-                        <td>${prod.lotNumber}</td>
-                        <td>${prod.style}</td>
-                        <td>${prod.size}</td>
-                        <td>${prod.pieces}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        </tbody>
-                    </table>
-                    <button class="btn btn-primary" onclick="generateTaskNoReport()" style="margin-top: 10px;">Back to Report</button>
-                </div>
-            `;
-            
-            document.getElementById("reportResults").innerHTML = html;
-        }
-        
-        // Generate lot report
+
         function generateLotReport() {
             const lotNumber = document.getElementById("reportLotNumber").value;
             const resultsContainer = document.getElementById("reportResults");
-            
             if (!lotNumber) {
-                // Show report for all lots
-                let html = `
-                    <div class="card">
-                        <h4>Lot Progress Report (RS02) - All Lots</h4>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Lot Number</th>
-                                    <th>Style</th>
-                                    <th>Size</th>
-                                    <th>Total Quantity</th>
-                                    <th>Completed</th>
-                                    <th>Progress</th>
-                                    <th>Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
+                let html = `<div class="card"><h4>Lot Progress Report - All Lots</h4><table class="data-table"><thead><tr><th>Lot Number</th><th>Style</th><th>Size</th><th>Total Quantity</th><th>Completed</th><th>Progress</th></tr></thead><tbody>`;
                 lots.forEach(lot => {
                     const lotProductions = productionData.filter(prod => prod.lotNumber === lot.lotNumber);
                     const totalCompleted = lotProductions.reduce((sum, prod) => sum + parseInt(prod.pieces), 0);
-                    const progress = Math.min(100, Math.round((totalCompleted / lot.quantity) * 100));
-                    
-                    html += `
-                        <tr>
-                            <td>${lot.lotNumber}</td>
-                            <td>${lot.style}</td>
-                            <td>${lot.size}</td>
-                            <td>${lot.quantity}</td>
-                            <td>${totalCompleted}</td>
-                            <td>
-                                <div style="background-color: #eee; width: 100%; height: 20px; border-radius: 4px;">
-                                    <div style="background-color: ${progress < 50 ? '#f39c12' : progress < 80 ? '#3498db' : '#27ae60'}; 
-                                        width: ${progress}%; height: 100%; border-radius: 4px; text-align: center; color: white; font-size: 12px; line-height: 20px;">
-                                        ${progress}%
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <button class="btn btn-info" onclick="showLotDetails('${lot.lotNumber}')">View Details</button>
-                            </td>
-                        </tr>
-                    `;
+                    const totalLotQty = Object.values(lot.sizes).reduce((sum, qty) => sum + qty, 0);
+                    const progress = Math.min(100, Math.round((totalCompleted / totalLotQty) * 100) || 0);
+                    html += `<tr><td>${lot.lotNumber}</td><td>${lot.style}</td><td>${Object.keys(lot.sizes).join(', ')}</td><td>${totalLotQty}</td><td>${totalCompleted}</td><td><div style="background-color: #eee; width: 100%; height: 20px; border-radius: 4px;"><div style="background-color: ${progress < 50 ? '#f39c12' : progress < 80 ? '#3498db' : '#27ae60'}; width: ${progress}%; height: 100%; border-radius: 4px; text-align: center; color: white; font-size: 12px; line-height: 20px;">${progress}%</div></div></td></tr>`;
                 });
-                
-                html += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                
+                html += `</tbody></table></div>`;
                 resultsContainer.innerHTML = html;
                 document.getElementById("reportResultsContainer").style.display = "block";
                 return;
             }
-            
-            // Show report for specific lot
             const lot = lots.find(l => l.lotNumber === lotNumber);
-            if (!lot) {
-                alert("Lot not found!");
-                return;
-            }
-            
+            if (!lot) { showAlert("Lot not found!", 'danger'); return; }
             const lotProductions = productionData.filter(prod => prod.lotNumber === lotNumber);
             const totalCompleted = lotProductions.reduce((sum, prod) => sum + parseInt(prod.pieces), 0);
-            const progress = Math.min(100, Math.round((totalCompleted / lot.quantity) * 100));
-            
-            let html = `
-                <div class="card">
-                    <h4>Lot Progress Report (RS02) - ${lotNumber}</h4>
-                    <table class="data-table">
-                        <tr>
-                            <th>Lot Number:</th>
-                            <td>${lot.lotNumber}</td>
-                        </tr>
-                        <tr>
-                            <th>Style:</th>
-                            <td>${lot.style}</td>
-                        </tr>
-                        <tr>
-                            <th>Size:</th>
-                            <td>${lot.size}</td>
-                        </tr>
-                        <tr>
-                            <th>Total Quantity:</th>
-                            <td>${lot.quantity}</td>
-                        </tr>
-                        <tr>
-                            <th>Completed:</th>
-                            <td>${totalCompleted}</td>
-                        </tr>
-                        <tr>
-                            <th>Progress:</th>
-                            <td>
-                                <div style="background-color: #eee; width: 100%; height: 20px; border-radius: 4px;">
-                                    <div style="background-color: ${progress < 50 ? '#f39c12' : progress < 80 ? '#3498db' : '#27ae60'}; 
-                                        width: ${progress}%; height: 100%; border-radius: 4px; text-align: center; color: white; font-size: 12px; line-height: 20px;">
-                                        ${progress}%
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <h5 style="margin-top: 20px;">Production History</h5>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Worker</th>
-                                <th>Pieces</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
+            const totalLotQty = Object.values(lot.sizes).reduce((sum, qty) => sum + qty, 0);
+            const progress = Math.min(100, Math.round((totalCompleted / totalLotQty) * 100) || 0);
+            let html = `<div class="card"><h4>Lot Progress Report - ${lotNumber}</h4><table class="data-table"><tr><th>Lot Number:</th><td>${lot.lotNumber}</td></tr><tr><th>Style:</th><td>${lot.style}</td></tr><tr><th>Size:</th><td>${Object.keys(lot.sizes).join(', ')}</td></tr><tr><th>Total Quantity:</th><td>${totalLotQty}</td></tr><tr><th>Completed:</th><td>${totalCompleted}</td></tr><tr><th>Progress:</th><td><div style="background-color: #eee; width: 100%; height: 20px; border-radius: 4px;"><div style="background-color: ${progress < 50 ? '#f39c12' : progress < 80 ? '#3498db' : '#27ae60'}; width: ${progress}%; height: 100%; border-radius: 4px; text-align: center; color: white; font-size: 12px; line-height: 20px;">${progress}%</div></div></td></tr></table><h5 style="margin-top: 20px;">Production History</h5><table class="data-table"><thead><tr><th>Date</th><th>Time</th><th>Worker</th><th>Pieces</th></tr></thead><tbody>`;
             lotProductions.forEach(prod => {
-                html += `
-                    <tr>
-                        <td>${prod.date}</td>
-                        <td>${prod.time}</td>
-                        <td>${prod.workerName} (${prod.workerId})</td>
-                        <td>${prod.pieces}</td>
-                    </tr>
-                `;
+                html += `<tr><td>${prod.date}</td><td>${prod.time}</td><td>${prod.workerName} (${prod.workerId})</td><td>${prod.pieces}</td></tr>`;
             });
-            
-            html += `
-                        </tbody>
-                    </table>
-                    <button class="btn btn-primary" onclick="generateLotReport()" style="margin-top: 10px;">Back to Report</button>
-                </div>
-            `;
-            
+            html += `</tbody></table></div>`;
             resultsContainer.innerHTML = html;
             document.getElementById("reportResultsContainer").style.display = "block";
         }
         
-        // Show lot details
-        function showLotDetails(lotNumber) {
-            const lot = lots.find(l => l.lotNumber === lotNumber);
-            if (!lot) return;
-            
-            const lotProductions = productionData.filter(prod => prod.lotNumber === lotNumber);
-            const totalCompleted = lotProductions.reduce((sum, prod) => sum + parseInt(prod.pieces), 0);
-            const progress = Math.min(100, Math.round((totalCompleted / lot.quantity) * 100));
-            
-            let html = `
-                <div class="card">
-                    <h4>Lot Details - ${lotNumber}</h4>
-                    <table class="data-table">
-                        <tr>
-                            <th>Lot Number:</th>
-                            <td>${lot.lotNumber}</td>
-                        </tr>
-                        <tr>
-                            <th>Style:</th>
-                            <td>${lot.style}</td>
-                        </tr>
-                        <tr>
-                            <th>Size:</th>
-                            <td>${lot.size}</td>
-                        </tr>
-                        <tr>
-                            <th>Total Quantity:</th>
-                            <td>${lot.quantity}</td>
-                        </tr>
-                        <tr>
-                            <th>Completed:</th>
-                            <td>${totalCompleted}</td>
-                        </tr>
-                        <tr>
-                            <th>Progress:</th>
-                            <td>
-                                <div style="background-color: #eee; width: 100%; height: 20px; border-radius: 4px;">
-                                    <div style="background-color: ${progress < 50 ? '#f39c12' : progress < 80 ? '#3498db' : '#27ae60'}; 
-                                        width: ${progress}%; height: 100%; border-radius: 4px; text-align: center; color: white; font-size: 12px; line-height: 20px;">
-                                        ${progress}%
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <h5 style="margin-top: 20px;">Production History</h5>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Worker</th>
-                                <th>Pieces</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            lotProductions.forEach(prod => {
-                html += `
-                    <tr>
-                        <td>${prod.date}</td>
-                        <td>${prod.time}</td>
-                        <td>${prod.workerName} (${prod.workerId})</td>
-                        <td>${prod.pieces}</td>
-                    </tr>
-                `;
+        // Generate Attendance Report
+        function generateAttendanceReport() {
+            const month = document.getElementById("reportWorkerMonth").value;
+            const resultsContainer = document.getElementById("reportResults");
+            if (!month) { showAlert("Please select a month!", 'danger'); return; }
+            const [year, reportMonth] = month.split('-');
+            const daysInMonth = new Date(year, reportMonth, 0).getDate();
+            const workerAttendance = new Map();
+            workers.forEach(worker => {
+                workerAttendance.set(worker.workerId, { name: worker.workerName, workLine: 'N/A', present: 0, absent: daysInMonth });
             });
-            
-            html += `
-                        </tbody>
-                    </table>
-                    <button class="btn btn-primary" onclick="generateLotReport()" style="margin-top: 10px;">Back to Report</button>
-                </div>
-            `;
-            
-            document.getElementById("reportResults").innerHTML = html;
+            productionData.filter(p => p.date.startsWith(month)).forEach(p => {
+                if (workerAttendance.has(p.workerId)) {
+                    const data = workerAttendance.get(p.workerId);
+                    const presentDates = new Set();
+                    productionData.filter(prod => prod.workerId === p.workerId && prod.date.startsWith(month)).forEach(prod => presentDates.add(prod.date));
+                    data.present = presentDates.size;
+                    data.absent = daysInMonth - data.present;
+                    data.workLine = p.workLine;
+                }
+            });
+            let html = `<div class="card"><h4>Worker Attendance Report for ${new Date(month).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</h4><table class="data-table"><thead><tr><th>Worker ID</th><th>Worker Name</th><th>Work Line</th><th>Present Days</th><th>Absent Days</th></tr></thead><tbody>`;
+            workerAttendance.forEach((data, workerId) => {
+                html += `<tr><td>${workerId}</td><td>${data.name}</td><td>${data.workLine}</td><td><span class="badge badge-success">${data.present}</span></td><td><span class="badge badge-danger">${data.absent}</span></td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+            resultsContainer.innerHTML = html;
+            document.getElementById("reportResultsContainer").style.display = "block";
         }
         
-        // Add new user
+        // --- User and Profile Management ---
+        
+        function loadPermissionsCheckboxes() {
+            const container = document.getElementById('permissionCheckboxes');
+            if (!container) return;
+            container.innerHTML = '';
+            for (const perm in permissionsMap) {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input" type="checkbox" value="${perm}" id="perm-${perm}">
+                    <label class="form-check-label" for="perm-${perm}">${permissionsMap[perm][currentLang]}</label>
+                `;
+                container.appendChild(div);
+            }
+        }
+        
         document.getElementById("addUserForm").addEventListener("submit", function(e) {
             e.preventDefault();
-            
             const userId = document.getElementById("newUserId").value;
             const name = document.getElementById("newUserName").value;
             const password = document.getElementById("newUserPassword").value;
             const role = document.getElementById("newUserRole").value;
+            const permissions = Array.from(document.querySelectorAll('#permissionCheckboxes input:checked')).map(cb => cb.value);
+
+            if (users.some(u => u.id === userId)) { showAlert("User ID already exists!", 'danger'); return; }
+            if (role === 'admin' && permissions.length !== Object.keys(permissionsMap).length) {
+                if (!confirm("Admin role should have all permissions. Continue anyway?")) return;
+            }
+
+            users.push({ id: userId, name, password, role, lastLogin: "", permissions, image: "" });
+            activities.unshift({ time: new Date().toLocaleString(), activity: "User Added", user: currentUser.id, details: `${userId} (${role})` });
+            e.target.reset();
+            loadUserList();
+            loadActivities();
+            showAlert("User added successfully!", 'success');
+        });
+        
+        function loadUserList() {
+            const tbody = document.getElementById("userList");
+            tbody.innerHTML = "";
+            users.forEach(user => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.name}</td>
+                    <td>${user.role}</td>
+                    <td>${user.lastLogin || 'Never'}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')" data-lang-key="delete-button">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            setLanguage(currentLang);
+        }
+        
+        function deleteUser(userId) {
+            if (currentUser.id === userId) {
+                showAlert("You cannot delete your own account!", 'danger');
+                return;
+            }
+            if (confirm(`Are you sure you want to delete user ${userId}?`)) {
+                users = users.filter(u => u.id !== userId);
+                activities.unshift({ time: new Date().toLocaleString(), activity: "User Deleted", user: currentUser.id, details: userId });
+                loadUserList();
+                loadActivities();
+                showAlert("User deleted successfully!", 'success');
+            }
+        }
+
+        document.getElementById("profileForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const currentPassword = document.getElementById("currentPassword").value;
+            const newPassword = document.getElementById("newPassword").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
             
-            // Check if user already exists
-            if (users.some(u => u.id === userId)) {
-                alert("User ID already exists!");
+            if (currentPassword !== currentUser.password) {
+                showAlert("Current password is incorrect.", 'danger');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showAlert("New passwords do not match.", 'danger');
                 return;
             }
             
-            // Add new user
-            users.push({
-                id: userId,
-                name,
-                password,
-                role,
-                lastLogin: ""
-            });
-            
-            // Add activity
-            activities.unshift({
-                time: new Date().toLocaleString(),
-                activity: "User Added",
-                user: currentUser.id,
-                details: `${userId} (${role})`
-            });
-            
-            // Reset form
-            this.reset();
-            
-            // Reload data
-            loadUserList();
-            loadActivities();
-            
-            alert("User added successfully!");
+            currentUser.password = newPassword;
+            showAlert("Password changed successfully!", 'success');
+            e.target.reset();
         });
-        
-        // Delete user
-        function deleteUser(userId) {
-            if (confirm(`Are you sure you want to delete user ${userId}?`)) {
-                users = users.filter(u => u.id !== userId);
-                
-                // Add activity
-                activities.unshift({
-                    time: new Date().toLocaleString(),
-                    activity: "User Deleted",
-                    user: currentUser.id,
-                    details: userId
-                });
-                
-                // Reload data
-                loadUserList();
-                loadActivities();
-                
-                alert("User deleted successfully!");
+
+        function updateProfileImage() {
+            const file = document.getElementById('profileImageInput').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageUrl = e.target.result;
+                    document.getElementById('profileImageDisplay').src = imageUrl;
+                    document.getElementById('userAvatar').innerHTML = `<img src="${imageUrl}" alt="User Avatar">`;
+                    currentUser.image = imageUrl;
+                    showAlert("Profile picture updated successfully!", 'success');
+                };
+                reader.readAsDataURL(file);
             }
         }
-        
-        // Deactivate card
-        function deactivateCard(cardNumber) {
-            if (confirm(`Are you sure you want to deactivate card ${cardNumber}?`)) {
-                const card = registeredCards.find(c => c.cardNumber === cardNumber);
-                if (card) {
-                    card.status = "inactive";
-                    
-                    // Add activity
-                    activities.unshift({
-                        time: new Date().toLocaleString(),
-                        activity: "Card Deactivated",
-                        user: currentUser.id,
-                        details: cardNumber
-                    });
-                    
-                    // Reload data
-                    loadRegisteredCards();
-                    loadActivities();
-                    
-                    alert("Card deactivated successfully!");
-                }
-            }
-        }
-        
-        // Delete lot
-        function deleteLot(lotNumber) {
-            if (confirm(`Are you sure you want to delete lot ${lotNumber}?`)) {
-                lots = lots.filter(l => l.lotNumber !== lotNumber);
-                
-                // Add activity
-                activities.unshift({
-                    time: new Date().toLocaleString(),
-                    activity: "Lot Deleted",
-                    user: currentUser.id,
-                    details: lotNumber
-                });
-                
-                // Reload data
-                loadLots();
-                loadActivities();
-                
-                alert("Lot deleted successfully!");
-            }
-        }
-        
-        // Cancel issued card
-        function cancelIssue(cardNumber, lotNumber) {
-            if (confirm(`Are you sure you want to cancel this issue for card ${cardNumber}?`)) {
-                issuedCards = issuedCards.filter(ic => ic.cardNumber !== cardNumber);
-                
-                // Add activity
-                activities.unshift({
-                    time: new Date().toLocaleString(),
-                    activity: "Card Issue Cancelled",
-                    user: currentUser.id,
-                    details: `${cardNumber}/${lotNumber}`
-                });
-                
-                // Reload data
-                loadIssuedCards();
-                loadActivities();
-                
-                alert("Issue cancelled successfully!");
-            }
-        }
+
+        // Initialize application
+        initializeSampleData();
+        setLanguage(currentLang);
     </script>
 </body>
-</html>            
+</html>
